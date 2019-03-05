@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?><!--Converted at: Sat Apr 02 22:02:53 KST 2016-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CKNW1030">
+
+	<!-- Search Knowledge(지식 조회) -->
+	<select id="SELECT_KNW" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		/* CKNW1030.SELECT_KNW : Search Knowledge(지식 조회) */
+		SELECT K.KNW_INF_SEQNO
+			 , K.KNW_LRGCLAS_CD
+			 , K.KNW_MIDCLAS_CD
+			 , K.KNW_SMLCLAS_CD
+			 , FN_KNW_TYP_CD_NM(K.KNW_LRGCLAS_CD, #{GBL_LANG_CD}) || 
+			   (CASE WHEN K.KNW_MIDCLAS_CD IS NULL THEN N'' ELSE N' > ' || FN_KNW_TYP_CD_NM(K.KNW_MIDCLAS_CD, #{GBL_LANG_CD}) END) ||
+			   (CASE WHEN K.KNW_SMLCLAS_CD IS NULL THEN N'' ELSE N' > ' || FN_KNW_TYP_CD_NM(K.KNW_SMLCLAS_CD, #{GBL_LANG_CD}) END) KNW_CLAS_NM
+			 , K.TITE
+			 , K.KNW_SMRY
+			 , K.RMK
+			 , NVL(R.READ_TCNT, 0) READ_TCNT
+			 , NVL(R.LKE_TCNT, 0) LKE_TCNT
+			 , NVL((SELECT COUNT(*) 
+			 		  FROM T_KNW_APND_FILE 
+			 		 WHERE KNW_INF_SEQNO = K.KNW_INF_SEQNO), 0) FILE_TCNT
+			 , NVL((SELECT COUNT(*) 
+			 	 	  FROM T_KNW_CMMT 
+			 	 	 WHERE KNW_INF_SEQNO = K.KNW_INF_SEQNO), 0) CMMT_TCNT
+			 , K.REG_ID
+			 , K.REGR_NM
+			 , K.REG_DTM
+			 , NVL((SELECT MAX(LKE_YN)
+					  FROM T_KNW_READ 
+					 WHERE KNW_INF_SEQNO = K.KNW_INF_SEQNO
+					   AND PUSL_MN_ID = #{GBL_USR_ID}), 'N') LKE_YN
+		  FROM T_KNW K
+		  LEFT JOIN 
+		  (SELECT KNW_INF_SEQNO
+				, NVL(COUNT(PUSL_TCNT), 0) READ_TCNT
+				, NVL(SUM(DECODE(LKE_YN, 'Y', 1, 0)), 0) LKE_TCNT
+			FROM T_KNW_READ
+			GROUP BY KNW_INF_SEQNO) R
+			ON K.KNW_INF_SEQNO = R.KNW_INF_SEQNO
+		 WHERE NVL(K.DEL_YN, 'N') = 'N'
+		<if test="SRCH_STR_DT != null and SRCH_STR_DT != ''">
+		   AND K.REG_DTM <![CDATA[>=]]> #{SRCH_STR_DT} || '000000'
+		</if>
+		<if test="SRCH_END_DT != null and SRCH_END_DT != ''">
+		   AND K.REG_DTM <![CDATA[<=]]> #{SRCH_END_DT} || '235959'
+		</if>
+		<if test="KNW_LRGCLAS_CD != null and KNW_LRGCLAS_CD != ''">
+		   AND K.KNW_LRGCLAS_CD = #{KNW_LRGCLAS_CD}
+		</if>
+		<if test="KNW_MIDCLAS_CD != null and KNW_MIDCLAS_CD != ''">
+		   AND K.KNW_MIDCLAS_CD = #{KNW_MIDCLAS_CD}
+		</if>
+		<if test="KNW_SMLCLAS_CD != null and KNW_SMLCLAS_CD != ''">
+		   AND K.KNW_SMLCLAS_CD = #{KNW_SMLCLAS_CD}
+		</if>
+		<if test="KEYWORD != null and KEYWORD != ''">
+		   AND (INSTR(K.TITE, #{KEYWORD}) > 0
+		    OR INSTR(K.KNW_SMRY, #{KEYWORD}) > 0
+		    OR DBMS_LOB.INSTR(K.KNW_CONT, #{KEYWORD}) > 0)
+		</if>
+		<if test="CMB_KNW_LVL != null and CMB_KNW_LVL != ''">
+		   AND K.LVL_CD = #{CMB_KNW_LVL}
+		</if>
+		<if test="REG_ID != null and REG_ID != ''">
+		   AND K.REG_ID = #{REG_ID}
+		</if>
+		 ORDER BY K.REG_DTM DESC
+    </select>
+
+	<!-- Search Remark History(상담내용 조회) -->
+	<select id="SELECT_RMK" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		/* CKNW1030.SELECT_RMK : Search Remark History(상담내용 조회) */
+		SELECT RMK.MEMO
+			 , RMK.MEMO_ID
+			 , RMK.CNSL_SEQNO
+			 , RMK.CNTR_CD
+			 , RMK.GRP_CD
+			 , RMK.TEAM_CD
+			 , RMK.REG_ID
+			 , FN_USR_NM(RMK.REG_ID) AS REGR_NM
+			 , (CASE WHEN HIS.CNSL_LRGCLAS_CD IS NULL THEN N'' ELSE FN_CNSL_CD_NM(HIS.CNSL_LRGCLAS_CD, #{GBL_LANG_CD}) END) || 
+			   (CASE WHEN HIS.CNSL_MEDCLAS_CD IS NULL THEN N'' ELSE N' > ' || FN_CNSL_CD_NM(HIS.CNSL_MEDCLAS_CD, #{GBL_LANG_CD}) END) ||
+			   (CASE WHEN HIS.CNSL_SMLCLAS_CD IS NULL THEN N'' ELSE N' > ' || FN_CNSL_CD_NM(HIS.CNSL_SMLCLAS_CD, #{GBL_LANG_CD}) END) CNSL_CLAS_NM
+			 , RMK.LST_UPD_DTM
+			 , HIS.CALL_CNSL_ID
+		  FROM T_RMK_HIST RMK
+		  LEFT JOIN T_CUR_HIST HIS
+		    ON RMK.CNSL_SEQNO = HIS.CNSL_SEQNO
+		 WHERE 1=1 
+		<if test="KEYWORD != null and KEYWORD != ''">
+		   AND RMK.MEMO LIKE '%' || #{KEYWORD} || '%'
+		</if>
+		<if test="SRCH_STR_DT != null and SRCH_STR_DT != ''">
+		   AND RMK.LST_UPD_DTM <![CDATA[>=]]> #{SRCH_STR_DT} || '000000'
+		</if>
+		<if test="SRCH_END_DT != null and SRCH_END_DT != ''">
+		   AND RMK.LST_UPD_DTM <![CDATA[<=]]> #{SRCH_END_DT} || '235959'
+		</if>
+		<if test="CNSL_LRGCLAS_CD != null and CNSL_LRGCLAS_CD != ''">
+			AND HIS.CNSL_LRGCLAS_CD = #{CNSL_LRGCLAS_CD}
+		</if>
+		<if test="CNSL_MEDCLAS_CD != null and CNSL_MEDCLAS_CD != ''">
+			AND HIS.CNSL_MEDCLAS_CD = #{CNSL_MEDCLAS_CD}
+		</if>
+		<if test="CNSL_SMLCLAS_CD != null and CNSL_SMLCLAS_CD != ''">
+			AND HIS.CNSL_SMLCLAS_CD = #{CNSL_SMLCLAS_CD}
+		</if>
+		  ORDER BY RMK.LST_UPD_DTM DESC
+	</select> 
+	
+	<!-- Search Call History(통화이력 조회) -->
+	<select id="SELECT_CALL_HIST" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		/* CKNW1030.SELECT_CALL_HIST : Search Call History(통화이력 조회) */
+		SELECT CNSL_DV_CD
+		  FROM T_CALL_HIST
+		 WHERE CALL_CNSL_ID = #{CALL_CNSL_ID} 
+	</select>
+	
+	<!-- Search Knowledge Division Tree(지식구분트리 조회) -->
+	<select id="SELECT_KNW_DIV_TREE" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		/* CKNW1030.SELECT_KNW_DIV_TREE : Search Knowledge Division Tree(지식구분트리 조회) */
+		SELECT NVL(HGRK_KNW_TYP_CD, 'ALL') HGRK_KNW_TYP_CD
+			 , KNW_TYP_CD
+			 , FN_KNW_TYP_CD_NM(KNW_TYP_CD, #{GBL_LANG_CD}) KNW_TYP_NM
+			 , SEQ
+			 , FN_KNOW_HGRK_LST(KNW_TYP_CD) KNW_TYP_CD_LST
+		  FROM T_KNW_TYP_CD
+		 WHERE USE_YN = 'Y'
+         
+		UNION ALL
+         
+		SELECT '' HGRK_KNW_TYP_CD
+			 , 'ALL' KNW_TYP_CD
+			 , FN_TRANS_NM('txt.1281', #{GBL_LANG_CD}) KNW_TYP_NM
+			 , 0 SEQ
+			 , '' KNW_TYP_CD_LST
+		 FROM DUAL
+		 
+		 ORDER BY SEQ 
+	</select>
+
+	<!-- Search Consultation Type Tree(상담유형트리 조회) -->
+	<select id="SELECT_CNT_DIV_TREE" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		/* CKNW1030.SELECT_CNT_DIV_TREE : Search Consultation Type Tree(상담유형트리 조회) */
+		SELECT DECODE(HGRK_CNSL_CD, CNSL_CD, 'ALL', NVL(HGRK_CNSL_CD, 'ALL')) HGRK_CNSL_CD
+			 , CNSL_CD
+			 , FN_CNSL_CD_NM(CNSL_CD, #{GBL_LANG_CD}) CNSL_NM
+			 , SEQ
+			 , FN_CNSL_HGRK_LST(CNSL_CD) CNSL_CD_LST
+		  FROM T_CNSL_CD
+		 WHERE USE_YN = 'Y'
+         
+		UNION ALL
+         
+		SELECT '' HGRK_CNSL_CD
+			 , 'ALL' CNSL_CD
+			 , FN_TRANS_NM('txt.1281', #{GBL_LANG_CD}) CNSL_NM
+			 , 0 SEQ
+			 , '' CNSL_CD_LST
+		 FROM DUAL
+		 
+		 ORDER BY SEQ 
+	</select>
+
+</mapper>

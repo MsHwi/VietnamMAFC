@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!--Converted at: Sat Apr 02 22:02:53 KST 2016-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CCUS3020">
+    
+    <!-- Register Customer Status (고객상태 저장)-->
+    <insert id="INSERT_CUST_MGR_STS_HIST" parameterType="java.util.HashMap">
+        /* CCUS3020.INSERT_CUST_MGR_STS_HIST : Register Customer Status (고객상태 저장) */
+        INSERT INTO T_CUST_MGR_STS_HIST
+        (
+            SEQ_NO            /* Sequence No */
+          , CUST_NO           /* Customer No */
+          , CUST_NM           /* Customer Name */
+<!--           , MGR_STS_CD        /* Management Status Code */ -->
+          , REG_CTT           /* Remark */
+          , CALL_CNSL_ID      /* Call Consultation Sequence No */
+          , CNSLR_ID          /* Agent Id */
+          , REG_ID            /* Registration Id */
+          , REG_DTM           /* Registration Date time */
+          , LST_UPD_ID        /* Last Update Id*/
+          , LST_UPD_DTM       /* Last Update Date time */
+          , SYS_DTM
+        )
+        VALUES
+        (
+            SEQ_T_CUST_MGR_STS_HIST.NEXTVAL
+          , #{CUST_NO}
+          , #{CUST_NM}
+<!--           , #{MGR_STS_CD} -->
+          , #{REG_CTT}
+          , #{CALL_CNSL_ID}
+          , #{GBL_USR_ID}
+          , #{GBL_USR_ID}
+          , FN_LOC_DTM(#{GBL_UTC_GAP})
+          , #{GBL_USR_ID}
+          , FN_LOC_DTM(#{GBL_UTC_GAP})
+          , FN_UTC_DTM()
+        )
+    </insert>
+        
+    <!-- Management Status Memo Search (관리상태메모 조회) -->
+    <select id="SELECT_MNG_MEMO" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        /* CCUS3020.SELECT_MNG_MEMO : Management Status Memo Search (관리상태메모 조회) */
+        SELECT MEMO AS MNG_STATE_MEMO
+          FROM T_COM_CD_SMLCLAS 
+         <trim prefix="WHERE" prefixOverrides="AND | OR">
+           AND LRGCLAS_CD = 'MGNT_ST' 
+           AND SMLCLAS_CD = #{SMLCLAS_CD}
+         </trim>
+    </select>
+    
+</mapper>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!--Converted at: Sat Apr 02 22:02:53 KST 2016-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CCUS1010">
+    
+    <!-- Search Registration Customer (등록 고객 조회) -->
+    <select id="SELECT_CUST_INFO" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        /* CCUS1010.SELECT_CUST_INFO : Search Registration Customer (등록 고객 조회) */
+        SELECT A.CUST_NO        	 /* Customer No */
+             , A.CUST_NM			 /* Customer Name */
+             , A.GNDR_DV_CD			 /* Gender Code */
+             , A.REALNM_NO			 /* Customer Register No */
+             , A.BTDY				 /* BirthDay */
+             , A.MBPH_NO			 /* Tel (Mobile) */
+             , A.EML_ADDR			 /* Email address */
+             , A.ETC_TEL_NO			 /* Tel (Etc.) */
+             , A.OWHM_ADDR			 /* Home No */
+             , A.OCP_CD				 /* Occupation Code  */
+             , FN_SMLCD_NM('OCP', A.OCP_CD, #{GBL_LANG_CD}, '') AS OCP_NM /* Occupation name(직업 명) */
+             , A.ETC_ADDR			 /* Address(Etc.) */
+             , A.AREA_CD			 /* Local Area Code */	
+             , FN_SMLCD_NM('TS_AREA', A.AREA_CD, #{GBL_LANG_CD}, '') AS AREA_NM /* Area name(지역 명) */
+             , A.WKPL_NM			 /* name (workplace) */	
+             , A.WKPL_ADDR			 /* Address(workplace) */
+             , A.WKPL_TEL_NO		 /* Tel (workplace) */
+             , A.FAX_NO				 /* Tel (Fax) */
+             , A.MM_SAL_AMT			 /* Monthly salary amount */
+             , A.CARR_TRM			 /* Career Experience Term */
+             , A.CONT_TRM_CD		 /* Contract Term Code */	
+             , FN_SMLCD_NM('TP_CONT', A.CONT_TRM_CD, #{GBL_LANG_CD}, '') AS CONT_TRM_NM
+             , A.POSN_NM			 /* Position Name */
+             , A.SAL_PAYM_METH_CD	 /* Salary Payment Method Code */
+             , FN_SMLCD_NM('SAL_METH', A.SAL_PAYM_METH_CD, #{GBL_LANG_CD}, '') SAL_PAYM_METH_NM
+             , A.MDIR_CRD_YN		 /* Medical Insurance Card Y/N*/
+             , FN_SMLCD_NM('HELT_CRD', A.MDIR_CRD_YN, #{GBL_LANG_CD}, '') MDIR_CRD_NM
+             , A.MEMO				 /* MEMO */
+             , A.CUST_INFW_DV		 /* Customer Inflow */
+             , A.REG_ID          	 /* Registration Id */
+             , A.REG_DTM         	 /* Registration Date time */
+             , A.LST_UPD_ID        	 /* Last Update Id */
+             , A.LST_UPD_DTM      	 /* Last Update Date time */
+             , A.SYS_DTM
+          FROM T_CUST_MSTR A
+          LEFT OUTER JOIN T_USR B
+		    ON ( A.REG_ID = B.USR_ID )
+          <trim prefix="WHERE" prefixOverrides="AND | OR">
+          	<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+            	AND B.CNTR_CD = #{CMB_CNTR_CD}
+          	</if>
+          	<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+            	AND B.GRP_CD = #{CMB_GRP_CD}
+          	</if>
+          	<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+          		AND B.TEAM_CD = #{CMB_TEAM_CD}
+          	</if>
+          	<if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+            	AND A.REG_ID = #{CMB_USR_ID}
+          	</if>
+           	<if test="CUST_NM != null and CUST_NM != ''">
+            	AND UPPER(A.CUST_NM) LIKE UPPER(#{CUST_NM}) || '%'
+          	</if>
+          	<if test="REALNM_NO != null and REALNM_NO != ''">
+            	AND A.REALNM_NO LIKE #{REALNM_NO} || '%'
+          	</if>
+          	<if test="SRCH_TEL_NO != null and SRCH_TEL_NO != ''">
+            	AND (   A.MBPH_NO    LIKE #{SRCH_TEL_NO} || '%'
+                	OR A.ETC_TEL_NO  LIKE #{SRCH_TEL_NO} || '%'
+                	OR A.WKPL_TEL_NO LIKE #{SRCH_TEL_NO} || '%'
+                	OR A.FAX_NO      LIKE #{SRCH_TEL_NO} || '%' )
+          	</if>
+          	<if test="AREA_CD != null and AREA_CD.size() > 0">
+		        AND A.AREA_CD IN (<foreach item="ITEM" collection="AREA_CD" separator=",">#{ITEM}</foreach>)
+		    </if>
+		    <if test="OCP_CD != null and OCP_CD.size() > 0">
+		        AND A.OCP_CD IN (<foreach item="ITEM" collection="OCP_CD" separator=",">#{ITEM}</foreach>)
+		    </if>
+          	<if test="SRCH_STR_DT != null and SRCH_STR_DT != '' and  SRCH_END_DT != null and SRCH_END_DT != ''" >
+            	AND A.REG_DTM BETWEEN #{SRCH_STR_DT}|| '000000' AND #{SRCH_END_DT} || '235959' 
+          	</if>
+          </trim>
+			ORDER BY A.REG_DTM DESC
+    </select>
+</mapper>

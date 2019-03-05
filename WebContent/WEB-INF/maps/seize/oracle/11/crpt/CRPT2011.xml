@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT2011">
+
+	<!-- Search Daily Agent Performance.(일일 상담원 실적 조회) -->
+	<select id="SELECT_DAY_AGEN_PFMC" resultType="java.util.HashMap"	parameterType="java.util.HashMap">
+	    /* CRPT2011.SELECT_DAY_AGEN_PFMC : Daily Agent Performance search(일일 상담원 실적 조회) */
+
+		WITH STAT_RAW_DATA AS (
+		/*
+		표출 데이터
+		| 날짜 | 상담원아이디 | 내선번호 | 대기건수 | 총 대기시간 | 이석건수(47) | 총이석시간 | 식사건수(41) | 총 식사시간 | 교육건수(42) | 총 교육시간 | 회의건수(43) | 총 회의시간 | 휴식건수(45) | 총 휴신시간 | 타업무 건수 (46) | 총 타업무시간 |
+		후처리 건수 | 총 후처리시간 |
+		*/
+			SELECT	DV1.c_date
+			      , DV2.c_user_id
+			      , DV2.c_user_extension
+			      , DV1.ACT_TM
+		   	      , DV1.event_code_cnt1, DV1.time1
+		   	      , DV1.event_code_cnt3, DV1.time3
+		   	      , DV1.event_code_cnt4, DV1.time4
+		   	      , DV1.event_code_cnt4_41, DV1.time4_41
+		   	      , DV1.event_code_cnt4_42, DV1.time4_42
+		   	      , DV1.event_code_cnt4_43, DV1.time4_43
+		   	      , DV1.event_code_cnt4_45, DV1.time4_45
+		   	      , DV1.event_code_cnt4_46, DV1.time4_46
+		   	      , DV1.event_code_cnt4_47, DV1.time4_47
+		   	      , DV1.event_code_cnt5, DV1.time5
+		   	      , DV1.event_code_cnt6, DV1.time6
+		   	      , DV1.event_code_cnt7, DV1.time7
+		   	      , DV1.event_code_cnt8, DV1.time8
+		      FROM 	(SELECT	EVT.C_DATE
+		      			  , EVT.C_USER_ID
+		      			  , FN_PERIOD_TO_SECONDS(MAX(END_LGIN_TM), MAX(STR_LGIN_TM)) AS ACT_TM
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='1' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt1, NVL(SUM(CASE WHEN EVT.c_event_code='1' THEN EVT.event_rtime ELSE 0 END), 0) time1
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='2' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt2, NVL(SUM(CASE WHEN EVT.c_event_code='2' THEN EVT.event_rtime ELSE 0 END), 0) time2
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='3' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt3, NVL(SUM(CASE WHEN EVT.c_event_code='3' THEN EVT.event_rtime ELSE 0 END), 0) time3
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='4' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt4, NVL(SUM(CASE WHEN EVT.c_event_code='4' THEN EVT.event_rtime ELSE 0 END), 0) time4
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '41' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt4_41, NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '41' THEN EVT.event_rtime ELSE 0 END), 0) time4_41
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '42' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt4_42, NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '42' THEN EVT.event_rtime ELSE 0 END), 0) time4_42
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '43' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt4_43, NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '43' THEN EVT.event_rtime ELSE 0 END), 0) time4_43
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '45' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt4_45, NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '45' THEN EVT.event_rtime ELSE 0 END), 0) time4_45
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '46' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt4_46, NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '46' THEN EVT.event_rtime ELSE 0 END), 0) time4_46
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '47' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt4_47, NVL(SUM(CASE WHEN EVT.c_event_code='4' AND EVT.c_reason_code = '47' THEN EVT.event_rtime ELSE 0 END), 0) time4_47
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='5' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt5, NVL(SUM(CASE WHEN EVT.c_event_code='5' THEN EVT.event_rtime ELSE 0 END), 0) time5
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='6' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt6, NVL(SUM(CASE WHEN EVT.c_event_code='6' THEN EVT.event_rtime ELSE 0 END), 0) time6
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='7' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt7, NVL(SUM(CASE WHEN EVT.c_event_code='7' THEN EVT.event_rtime ELSE 0 END), 0) time7
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='8' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt8, NVL(SUM(CASE WHEN EVT.c_event_code='8' THEN EVT.event_rtime ELSE 0 END), 0) time8
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='9' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt9, NVL(SUM(CASE WHEN EVT.c_event_code='9' THEN EVT.event_rtime ELSE 0 END), 0) time9
+		      		      , NVL(SUM(CASE WHEN EVT.c_event_code='10' THEN EVT.event_code_cnt ELSE 0 END), 0) AS event_code_cnt10, NVL(SUM(CASE WHEN EVT.c_event_code='10' THEN EVT.event_rtime ELSE 0 END), 0)  time10
+		      		FROM 	(SELECT "c_date"          AS c_date
+		         				  , "c_user_id"       AS c_user_id
+		         				  , "c_event_code"    AS c_event_code
+		         				  , (CASE WHEN "c_event_code" = '4' THEN "c_reason_code" ELSE NULL END) AS c_reason_code
+		         				  , COUNT("c_event_code")                     AS event_code_cnt
+		         				  , SUM(CAST("c_event_rtime" AS int))         AS event_rtime
+		         				  , MIN(CASE WHEN "c_event_code" ='1' THEN "c_event_stime" END)   AS STR_LGIN_TM
+                				  , MAX(CASE WHEN "c_event_code" ='2' THEN "c_event_stime" END)   AS END_LGIN_TM
+		         			   FROM	"ct_counselor_event"@tmotion
+		         			  WHERE	"c_date" = #{SRCH_DT}
+		         			  GROUP BY "c_date"
+									 , "c_user_id"
+									 , "c_event_code"
+									 , (CASE WHEN "c_event_code"='4' THEN "c_reason_code" ELSE NULL END)) EVT
+		      		GROUP BY c_date, c_user_id) DV1
+					/* 
+					날짜별 조회라 left join으로 변경,
+					날짜 없이 상담원 기준이라면 right join으로 바꾸고 날짜 없애야됨 
+					*/
+		   			LEFT JOIN (SELECT	"c_user_id"           AS c_user_id
+		      						  , USR."c_sg_code"       AS c_sg_code
+		      						  , "c_user_name"         AS c_user_name
+		      						  , "c_user_extension"    AS c_user_extension
+		      					 FROM	"ct_user_info"@tmotion USR
+		      							--INNER JOIN "ct_sg_info"@tmotion SG
+		      							--	ON USR."c_sg_code"=SG."c_sg_code"
+		      					WHERE	1 = 1
+		      					-- 예외조건
+							) DV2
+		  	 			ON DV1.c_user_id = DV2.c_user_id
+		),
+		STAT_CALL_DATA AS (
+			SELECT  "c_date"          AS c_date
+				  , "c_user_id"       AS c_user_id
+				  , SUM(CASE WHEN "c_date" IS NOT NULL AND ("c_call_type" = 'I') AND "c_routing_success_yn" = 'Y' THEN 1 ELSE 0 END) AS ib_totl_cnt
+				  , SUM(CASE WHEN "c_date" IS NOT NULL AND "c_call_type" = 'O' AND "c_conn_time" IS NOT NULL THEN 1 ELSE 0 END) AS ob_totl_cnt
+				  , NVL(SUM(CASE WHEN "c_conn_time" IS NOT NULL THEN "c_talk_time" END), 0) AS totl_tm
+			  FROM  "ct_call_history_trg"@tmotion
+			 WHERE	"c_date" = #{SRCH_DT}
+			   AND	"c_line_kind" = '1'
+			   AND	"c_call_type" IN ('I', 'O')
+			   AND  LENGTH("c_cust_num") > 4
+			   AND	"c_user_id" IS NOT NULL
+			 GROUP BY  "c_date"
+					 , "c_user_id"
+		),
+		/*
+		표출 데이터
+		| 날짜 | 상담원아이디 | 내선번호 |
+		대기건수 | 총 대기시간 | 
+		이석건수(47) | 총이석시간 | 
+		식사건수(41) | 총 식사시간 | 
+		교육건수(42) | 총 교육시간 | 
+		회의���수(43) | 총 회의시간 | 
+		휴식건수(45) | 총 휴신시간 | 
+		타업무 건수 (46) | 총 타업무시간 |
+		후처리 건수 | 총 후처리시간 |
+		*/
+		-- 직원별 검색
+		STAT_DATA AS (
+		   SELECT	C_DATE 
+		   		  , NVL(B.c_user_id, '-')      		AS c_user_id
+		   	      , NVL(B.c_user_extension, '-')   	AS c_user_extension
+		   	      , NVL(B.ACT_TM, 0)				AS c_actl_stff_time
+		   	      , NVL(B.event_code_cnt3, 0)   	AS c_ready_count
+		   	      , NVL(B.time3, 0)             	AS c_ready_time
+		   	      , NVL(B.event_code_cnt4_47, 0)   	AS c_not_ready_count
+		   	      , NVL(B.time4_47, 0)          	AS c_not_ready_time
+		   	      , NVL(B.event_code_cnt4_41, 0)   	AS c_meal_count
+		   	      , NVL(B.time4_41, 0)          	AS c_meal_time
+		   	      , NVL(B.event_code_cnt4_42, 0)   	AS c_education_count
+		   	      , NVL(B.time4_42, 0)          	AS c_education_time
+		   	      , NVL(B.event_code_cnt4_43, 0)   	AS c_meeting_count
+		  	      , NVL(B.time4_43, 0)          	AS c_meeting_time
+		   	      , NVL(B.event_code_cnt4_45, 0)   	AS c_rest_count
+		   	      , NVL(B.time4_45, 0)          	AS c_rest_time
+		   	      , NVL(B.event_code_cnt4_46, 0)   	AS c_diff_working_count
+		   	      , NVL(B.time4_46, 0)          	AS c_diff_working_time
+		   	      , NVL(B.event_code_cnt6, 0)   	AS c_acw_count
+		   	      , NVL(B.time6, 0)            		AS c_acw_time
+			      , NVL((SELECT	ib_totl_cnt
+			         	   FROM	STAT_CALL_DATA A
+			         	  WHERE A.c_user_id = B.c_user_id), 0) AS ib_totl_cnt
+			      , NVL((SELECT	ob_totl_cnt
+					       FROM	STAT_CALL_DATA A
+					      WHERE A.c_user_id = B.c_user_id), 0) AS ob_totl_cnt
+			      , NVL((SELECT	totl_tm
+			               FROM	STAT_CALL_DATA A
+			         	  WHERE A.c_user_id = B.c_user_id), 0) AS totl_tm
+		     FROM 	STAT_RAW_DATA B
+		)
+		SELECT	STS.c_date
+			  , '[' || USR.USR_ID || '] ' || USR.USR_NM  				AS AGEN_NM
+		      , STS.ib_totl_cnt           	AS ANSW_CALL
+		      , STS.ob_totl_cnt           	AS EXT_CALL
+		      , ROUND(STS.totl_tm / DECODE(STS.ib_totl_cnt + STS.ob_totl_cnt, 0, 1, STS.ib_totl_cnt + STS.ob_totl_cnt)) AS AVG_HNDL_TM
+		      , STS.c_actl_stff_time 		AS ACTL_STFF_TM
+		      , STS.totl_tm          		AS TOT_TLK_TM
+		      , STS.c_ready_time		    AS TOT_RDY_TM
+		      , STS.c_not_ready_time	    AS TOT_NREADY_TM
+		      , STS.c_meal_time		    	AS TOT_MEAL_TM
+		      , STS.c_education_time 	    AS TOT_TRNG_TM
+		      , STS.c_meeting_time 			AS TOT_METI_TM
+		      , STS.c_rest_time		    	AS TOT_RST_TM
+		      , STS.c_diff_working_time   	AS TOT_DIFF_WRK_TM
+		      , STS.c_acw_time 				AS TOT_ACT_TM
+		  FROM	(SELECT  USR_ID
+		               , USR_NM
+		               , CTI_LGIN_ID
+		           FROM  T_USR
+		          WHERE  1 = 1
+					AND BIZ_DV = 'IB'
+					<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+						AND CNTR_CD = #{CMB_CNTR_CD}
+					</if>
+					<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+						AND GRP_CD = #{CMB_GRP_CD}
+					</if>
+					<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+						AND TEAM_CD = #{CMB_TEAM_CD}
+					</if>
+					 
+					 
+					 
+		        ) USR
+		        INNER JOIN STAT_DATA STS
+		            ON  USR.CTI_LGIN_ID = STS.c_user_id
+		ORDER BY c_date
+				 , USR.USR_NM ASC 
+	</select>
+</mapper>
+    

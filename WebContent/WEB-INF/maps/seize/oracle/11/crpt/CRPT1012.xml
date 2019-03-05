@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT1012">
+	
+	<!-- Search Monthly Calls.(월별 콜 조회) -->
+    <select id="SELECT_MONTHLY_CALL" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT1012.SELECT_MONTHLY_CALL : Monthly Calls search(월별 콜 조회) */
+		SELECT  A2.REG_DT    AS DT																/* Date */
+<!-- 		      , SUM(CASE WHEN A2.CHK = 0 AND A2.CALL_ID IS NOT NULL AND A2.RNK = 1 THEN 1 ELSE 0 END) AS FRSH_DATA			/* Fresh Data(not call ever) */ -->
+<!-- 		      , SUM(CASE WHEN A2.CHK = 0 AND A2.CALL_ID IS NOT NULL AND A2.RNK != 1 THEN 1 -->
+<!-- 		                 WHEN A2.CHK > 0 AND A2.CALL_ID IS NOT NULL THEN 1 -->
+<!-- 		            ELSE 0 -->
+<!-- 		            END)                                  AS WIP_DATA							/* Wip Data(called connect before) */ -->
+		      , SUM(CASE WHEN A2.CHK = 0 AND B2.c_call_id IS not NULL THEN 1 ELSE 0 END) AS FRSH_DATA
+		      , SUM(CASE WHEN A2.CHK > 0 AND B2.c_call_id IS not NULL THEN 1 ELSE 0 END) AS WIP_DATA
+		      , NVL(SUM(B2.c_talk_time), 0)               AS TLKTM_TOT							/* Talktime Total */
+		      , ROUND(NVL(SUM(B2.c_talk_time), 0) / DECODE(SUM(CASE WHEN A2.CALL_ID IS NOT NULL THEN 1 ELSE 0 END), 0, 1, SUM(CASE WHEN A2.CALL_ID IS NOT NULL THEN 1 ELSE 0 END)))    	AS AVG_DURT
+		      , SUM(CASE WHEN B2.c_call_id IS NULL THEN 1 ELSE 0 END) AS NO_CONN				/* No Connect */
+		      , COUNT(1)                                  AS CALL_TOT							/* Total Call */
+		  FROM  (SELECT SUBSTR(A1.REG_DTM, 0, 8) AS REG_DT
+		              , SUBSTR(A1.REG_DTM, 9, 2) AS REG_HH
+		              , A1.CMP_ID
+		              , A1.CALL_ID
+		              , A1.CALL_LIST_SEQNO
+		              , A1.CUST_NO
+		              , ROW_NUMBER() OVER(PARTITION BY A1.CMP_ID, A1.CUST_NO, A1.CALL_LIST_SEQNO, A1.CNSLR_ID, SUBSTR(A1.CALL_ID, 0, 8) ORDER BY A1.REG_DTM) RNK
+		              , A1.CNNT_TEL_NO
+		              , A1.CTI_LGIN_ID
+		              , A1.EXT_NO
+		              , A1.CNSLR_ID
+		              , USR.CNTR_CD
+		              , USR.GRP_CD
+		              , USR.TEAM_CD
+		              , A1.BIZ_DV_CD
+		              , (SELECT	COUNT(S1.CUST_NO)
+		                   FROM T_CALL_HIST S1
+<!-- 		                  WHERE S1.REG_DTM BETWEEN A1.REG_DTM || '000000' AND TO_CHAR(TO_DATE(SUBSTR(A1.REG_DTM, 0, 8), 'YYYYMMDD') - 1, 'YYYYMMDD') || '235959' -->
+		                  WHERE S1.REG_DTM <![CDATA[<]]> TO_CHAR(TO_DATE(SUBSTR(A1.REG_DTM, 0, 8), 'YYYYMMDD'), 'YYYYMMDD') || '000000'
+		                    AND S1.CMP_ID = A1.CMP_ID
+		                    AND S1.CALL_LIST_SEQNO = A1.CALL_LIST_SEQNO
+		                    AND S1.CUST_NO = A1.CUST_NO) AS CHK
+		              , A1.ASGN_DT
+		          FROM  T_CALL_HIST A1
+		          LEFT JOIN T_USR USR
+		            ON A1.CNSLR_ID = USR.USR_ID
+		         WHERE  1 = 1
+		           AND  A1.REG_DTM BETWEEN #{SRCH_STR_DT} || '000000' AND #{SRCH_END_DT} || '235959'
+					<if test="CMB_CMP_CD != null and CMB_CMP_CD != ''">
+						AND A1.CMP_ID = #{CMB_CMP_CD}
+					</if>
+					<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+						AND USR.CNTR_CD = #{CMB_CNTR_CD}
+					</if>
+					<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+						AND USR.GRP_CD = #{CMB_GRP_CD}
+					</if>
+					<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+						AND USR.TEAM_CD = #{CMB_TEAM_CD}
+					</if>
+		           AND  A1.BIZ_DV_CD = 'OB'
+		           AND  LENGTH(A1.CNNT_TEL_NO) > 4) A2
+		        LEFT OUTER JOIN (SELECT  "c_date"           AS c_date           /* register date(등록일자) */
+		                               , "c_user_id"       AS c_user_id        /* agent id(상담원 id) */
+		                               , "c_call_id1"      AS c_call_id
+		                               , "c_extension"     AS c_extension
+		                               , "c_conn_time"     AS c_conn_time
+		                               , "c_talk_time"     AS c_talk_time
+		                           FROM  "ct_call_history_trg"@tmotion
+		                          WHERE	 1 = 1 
+		                            AND  "c_date" BETWEEN #{SRCH_STR_DT} AND #{SRCH_END_DT}
+		                            AND	 "c_line_kind" = '1'
+		                            AND	 "c_call_type" IN ('O')
+		                            AND  LENGTH("c_cust_num") > 4
+		                            AND	 "c_user_id" IS NOT NULL) B2
+		            ON  (A2.REG_DT = B2.c_date
+            		AND  A2.CALL_ID = SUBSTR(B2.c_date, 0, 8) || B2.c_call_id)
+		GROUP BY A2.REG_DT
+		ORDER BY A2.REG_DT
+    </select>
+    
+    <!-- Search Campaign.(캠페인 조회) -->
+    <select id="SELECT_CMP" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT1012.SELECT_CMP : Campaign search(캠페인 조회) */
+            SELECT CMP_NM AS TEXT,
+                   CMP_ID AS CODE
+              FROM T_CMP
+             WHERE CMP_ID != 'C001001000001' /* 콜백 캠페인 제외 */
+               AND CMP_ID != 'C001001000002' /* 콜백 캠페인 제외 */
+               AND END_DT <![CDATA[ >= ]]> TO_CHAR(SYSDATE, 'YYYMMDD')
+             ORDER BY CMP_ID
+    </select>
+</mapper>
+    

@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT2013">
+
+	<!-- Search Monthly Call Report (월별 콜 종합 조회) -->
+	<select id="SELECT_MMLY_CALL" resultType="java.util.HashMap"	parameterType="java.util.HashMap">
+	    /* CRPT2013.SELECT_MMLY_CALL : Monthly Call search(월별 콜 종합 조회) */
+		WITH CNTR_DV AS (
+		    SELECT DISTINCT CNTR_CD
+		         , REGEXP_SUBSTR(A.BSVL, '[^,]+', 1, LEVEL) AS DNIS
+		      FROM (SELECT CNTR_CD
+		                 , BSVL
+		              FROM T_BSVL_INFO
+		             WHERE BASC_DV_TYP = 'SYS'
+		               AND BASC_DV_CD = 'DNIS') A
+		   CONNECT BY LEVEL <![CDATA[ <= ]]> length(regexp_replace(A.BSVL, '[^,]+',''))+1
+		), CALL_HIS AS (
+		    SELECT  "c_date" AS C_DATE
+		          , "c_bg_code" AS CNTR_CD
+		          , "c_user_id" AS USER_ID
+		          , regexp_substr(regexp_substr("c_uei", '[^|]+', 1, 1), '[^`]+', 1, 2) AS SVC_CD
+		          , SUM(CASE WHEN "c_conn_time" IS NOT NULL THEN 1 ELSE 0 END) AS CONN_CNT
+		          , SUM(CASE WHEN "c_conn_time" IS NOT NULL THEN "c_talk_time" ELSE 0 END) AS AHT
+		          , SUM(FN_PERIOD_TO_SECONDS("c_conn_time", "c_line_start_time")) AS ASA
+		      FROM  "ct_call_history_trg"@tmotion
+		     WHERE  "c_date" BETWEEN #{SRCH_STR_DT} AND #{SRCH_END_DT}
+               AND (("c_call_type" = 'I' and length("c_cust_num")>4) or "c_call_type" = 'T')
+		       AND "c_conn_time" IS NOT NULL
+               AND "c_line_kind" = '1'
+		       AND "c_user_id" IS NOT NULL
+               AND "c_uei"  IS NOT NULL
+		     GROUP BY "c_date"
+		            , "c_bg_code"
+		            , "c_user_id"
+		            , regexp_substr(regexp_substr("c_uei", '[^|]+', 1, 1), '[^`]+', 1, 2)
+		), IVR_HIS AS (
+			SELECT	C_DATE
+			      , CNTR_CD
+			      , SVC_CD
+			      , SUM(ABANDON) AS ABANDON
+			      , SUM(ASA) AS ASA
+			      , MAX(LWT) AS LWT
+			  FROM (SELECT "i_date" AS C_DATE
+			             , (SELECT CNTR_CD
+			                  FROM CNTR_DV
+			                 WHERE DNIS = "i_dnis_code") AS CNTR_CD
+			             , CASE WHEN "i_svc_history" LIKE '%SC00%' THEN 'SC00'
+                                WHEN "i_svc_history" LIKE '%SC01%' THEN 'SC01'
+                                WHEN "i_svc_history" LIKE '%SC02%' THEN 'SC02'
+                                WHEN ("i_svc_history" LIKE '%SC03%' OR "i_last_svc_code" = 'SC03E') THEN 'SC03' 
+                           ELSE TO_CHAR("i_last_svc_code") END AS SVC_CD
+			             , CASE WHEN "i_trans_try_yn" = 'Y' AND "i_trans_succ_yn" = 'N' AND "i_trans2_succ_yn" = 'N' THEN 1 ELSE 0 END 		AS ABANDON
+			             , CASE WHEN "i_trans_try_yn" = 'Y' AND "i_trans_succ_yn" = 'Y' THEN FN_PERIOD_TO_SECONDS("i_trans_succ_time", "i_trans_req_time") 
+			                    WHEN "i_trans_try_yn" = 'Y' AND "i_trans_succ_yn" = 'N' THEN "i_cust_wait_time"
+			               END AS ASA
+			             , CASE WHEN "i_trans_try_yn" = 'Y'  THEN "i_cust_wait_time2"
+			               END AS LWT
+            			 , CASE WHEN "i_svc_history" LIKE '%SC03%' THEN 1 ELSE 0 END AS SELF_ANSWER
+			          FROM "ir_history_trg"@tmotion
+			         WHERE 1 = 1
+			           AND "i_date" BETWEEN #{SRCH_STR_DT} AND #{SRCH_END_DT})
+			 WHERE 1 = 1
+			   AND EXISTS (SELECT SMLCLAS_CD
+			                 FROM T_COM_CD_SMLCLAS
+			                WHERE 1 = 1
+			                  AND LRGCLAS_CD = 'IVR_INCL_PATH'
+			                  AND SMLCLAS_CD = SVC_CD
+			                  AND (REFN_CDVLU1 != 'CB' OR REFN_CDVLU1 IS NULL))
+			 GROUP BY C_DATE
+			        , CNTR_CD
+			        , SVC_CD
+			        
+		), IB_DATA AS (
+		    SELECT  TO_CHAR(IVR.C_DATE) AS C_DATE
+		          , SUM(NVL(ANSWER,0)+NVL(ABANDON,0)) AS OFFERED
+		          , SUM(ANSWER)  AS ANSWER
+		          , SUM(ABANDON) AS ABANDON
+		          , ROUND((SUM(ANSWER) / DECODE(SUM(NVL(ANSWER,0)+NVL(ABANDON,0)), 0, 1, SUM(NVL(ANSWER,0)+NVL(ABANDON,0)))) * 100)    AS SVCLV
+		          , SUM(AHT) AS AHT
+		          , SUM(USR.ASA) AS ASA
+		          , MAX(LWT) AS LWT
+		          , SUM(CASE WHEN IVR.SVC_CD = 'SC00' THEN NVL(ANSWER,0)+NVL(ABANDON,0) ELSE 0 END) AS OTH_ABD      
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC01' THEN NVL(ANSWER,0)+NVL(ABANDON,0) ELSE 0 END) AS RQRE_INFO_ABD
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC02' THEN NVL(ANSWER,0)+NVL(ABANDON,0) ELSE 0 END) AS COMP_ABD     
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC03' THEN NVL(ANSWER,0)+NVL(ABANDON,0) ELSE 0 END) AS SELF_SVC_ABD
+                  --, SUM(SELF_OFFERED) AS SELF_SVC_ABD  
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC00' THEN ANSWER ELSE 0 END) AS OTH_ANS      
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC01' THEN ANSWER ELSE 0 END) AS RQRE_INFO_ANS
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC02' THEN ANSWER ELSE 0 END) AS COMP_ANS     
+		      FROM  IVR_HIS IVR
+                    LEFT OUTER JOIN
+                    (SELECT  A.C_DATE
+		      		 	   , A.CNTR_CD
+                           , A.SVC_CD
+		                   , SUM(A.CONN_CNT) AS ANSWER
+		                   , NVL(SUM(A.AHT), 0)   AS AHT
+		                   , SUM(A.ASA)           AS ASA
+		               FROM  CALL_HIS A
+		                     LEFT OUTER JOIN T_USR B
+		                         ON  (A.USER_ID = B.CTI_LGIN_ID)
+		              WHERE  1 = 1
+		                --AND  C.CNTR_CD IS NOT NULL
+		              /* 센터, 그룹, 팀 조회 조건 */
+		               
+		              <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+					     AND A.CNTR_CD = #{CMB_CNTR_CD}
+					  </if>
+					  <if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+					     AND B.GRP_CD = #{CMB_GRP_CD}
+					  </if>
+					  <if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+					     AND B.TEAM_CD = #{CMB_TEAM_CD}
+					  </if>
+					   
+		              GROUP BY A.C_DATE, A.CNTR_CD , A.SVC_CD) USR
+                       ON IVR.C_DATE = USR.C_DATE
+                      AND IVR.CNTR_CD = USR.CNTR_CD
+                      AND IVR.SVC_CD = USR.SVC_CD
+                      
+                      
+		     GROUP BY IVR.C_DATE
+		)
+		SELECT CALL_TOT
+		     , CALL_ANS
+		     , CALL_ABD
+		     , SVCE_LVL
+		     , AHT
+		     , ASA
+		     , LGST_WAIT
+		     , HGST_TOT_CALL
+		     , LWST_TOT_CALL
+		     , MAX_SL
+		     , MON_SL
+			 , (SELECT COUNT(1)
+		          FROM T_CABACK CBK
+		          LEFT OUTER JOIN T_USR USR
+		            ON CBK.CHRG_CNSLR_ID = USR.USR_ID
+		         WHERE 1 = 1
+		           AND CBK.CABACK_DTM BETWEEN #{SRCH_STR_DT} || '000000' AND #{SRCH_END_DT} || '235959'
+			    <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+				   AND USR.CNTR_CD = #{CMB_CNTR_CD}
+				</if>
+				<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+				   AND USR.GRP_CD = #{CMB_GRP_CD}
+				</if>
+				<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+				   AND USR.TEAM_CD = #{CMB_TEAM_CD}
+				</if>    
+			   ) AS NO_CABACK								/* No. of callback */      
+		  FROM (SELECT  NVL(SUM(OFFERED), 0)        AS CALL_TOT                                                                 /* Total Calls */          
+				      , NVL(SUM(ANSWER), 0)         AS CALL_ANS                                                                 /* Ans. Calls */           
+				      , NVL(SUM(ABANDON), 0)        AS CALL_ABD                                                                 /* Aban. Calls */          
+				      , NVL(ROUND((SUM(ANSWER) / DECODE(SUM(OFFERED), 0, 1, SUM(OFFERED))) * 100), 0) || '%'  AS SVCE_LVL       /* Serv. Level */          
+				      , NVL(ROUND(SUM(AHT) / DECODE(SUM(ANSWER), 0, 1, SUM(ANSWER))), 0)                      AS AHT            /* AHT */                  
+				      , NVL(ROUND(SUM(ASA) / DECODE(SUM(ANSWER), 0, 1, SUM(ANSWER))), 0)                      AS ASA            /* ASA */                  
+				      , NVL(MAX(LWT), 0) 			AS LGST_WAIT                                                                /* Longest waitting time */      
+				      , NVL(MAX(OFFERED), 0)        AS HGST_TOT_CALL                                                            /* Highest total calls */
+				      , NVL(MIN(OFFERED), 0)        AS LWST_TOT_CALL                                                            /* Lowest totla call */  
+				      , NVL(MAX(SVCLV), 0)          AS MAX_SL                                                                   /* Max of SL */          
+				      , NVL(MIN(SVCLV), 0)          AS MON_SL                                                                   /* Min of SL */   
+				  FROM  IB_DATA
+				 WHERE   1 = 1)
+	</select>
+	
+	<!-- Search Weekly Call Detail Report (월별 콜 세부 조회) -->
+    <select id="SELECT_MMLY_CALL_DETL" resultType="java.util.HashMap"    parameterType="java.util.HashMap">
+        /* CRPT2013.SELECT_MMLY_CALL_DETL :  Monthly Call Detail search(월별 콜 세부 조회) */
+		WITH CNTR_DV AS (
+		    SELECT DISTINCT CNTR_CD
+		         , REGEXP_SUBSTR(A.BSVL, '[^,]+', 1, LEVEL) AS DNIS
+		      FROM (SELECT CNTR_CD
+		                 , BSVL
+		              FROM T_BSVL_INFO
+		             WHERE BASC_DV_TYP = 'SYS'
+		               AND BASC_DV_CD = 'DNIS') A
+		   CONNECT BY LEVEL <![CDATA[ <= ]]> length(regexp_replace(A.BSVL, '[^,]+',''))+1
+		), CALL_HIS AS (
+		    SELECT  "c_date" AS C_DATE
+		          , "c_bg_code" AS CNTR_CD
+		          , "c_user_id" AS USER_ID
+		          , regexp_substr(regexp_substr("c_uei", '[^|]+', 1, 1), '[^`]+', 1, 2) AS SVC_CD
+		          , SUM(CASE WHEN "c_conn_time" IS NOT NULL THEN 1 ELSE 0 END) AS CONN_CNT
+		          , SUM(CASE WHEN "c_conn_time" IS NOT NULL THEN "c_talk_time" ELSE 0 END) AS AHT
+		          , SUM(FN_PERIOD_TO_SECONDS("c_conn_time", "c_line_start_time")) AS ASA
+		      FROM  "ct_call_history_trg"@tmotion
+		     WHERE  "c_date" BETWEEN #{SRCH_STR_DT} AND #{SRCH_END_DT}
+               AND (("c_call_type" = 'I' and length("c_cust_num")>4) or "c_call_type" = 'T')
+		       AND "c_conn_time" IS NOT NULL
+               AND "c_line_kind" = '1'
+		       AND "c_user_id" IS NOT NULL
+               AND "c_uei"  IS NOT NULL
+		     GROUP BY "c_date"
+		            , "c_bg_code"
+		            , "c_user_id"
+		            , regexp_substr(regexp_substr("c_uei", '[^|]+', 1, 1), '[^`]+', 1, 2)
+		), IVR_HIS AS (
+			SELECT	C_DATE
+			      , CNTR_CD
+			      , SVC_CD
+			      , SUM(ABANDON) AS ABANDON
+			      , SUM(ASA) AS ASA
+			      , MAX(LWT) AS LWT
+			      , SUM(SELF_ANSWER) AS SELF_ANSWER
+			  FROM (SELECT "i_date" AS C_DATE
+			             , "i_user_id" AS USER_ID
+			             , (SELECT CNTR_CD
+			                  FROM CNTR_DV
+			                 WHERE DNIS = "i_dnis_code") AS CNTR_CD
+			             , CASE WHEN "i_svc_history" LIKE '%SC00%' THEN 'SC00'
+                                WHEN "i_svc_history" LIKE '%SC01%' THEN 'SC01'
+                                WHEN "i_svc_history" LIKE '%SC02%' THEN 'SC02'
+                                WHEN ("i_svc_history" LIKE '%SC03%' OR "i_last_svc_code" = 'SC03E') THEN 'SC03' 
+                           ELSE TO_CHAR("i_last_svc_code") END AS SVC_CD
+			             , CASE WHEN "i_trans_try_yn" = 'Y' AND "i_trans_succ_yn" = 'N' AND "i_trans2_succ_yn" = 'N' THEN 1 ELSE 0 END 		AS ABANDON
+			             , CASE WHEN "i_trans_try_yn" = 'Y' AND "i_trans_succ_yn" = 'Y' THEN FN_PERIOD_TO_SECONDS("i_trans_succ_time", "i_trans_req_time") 
+			                    WHEN "i_trans_try_yn" = 'Y' AND "i_trans_succ_yn" = 'N' THEN "i_cust_wait_time"
+			               END AS ASA
+			             , CASE WHEN "i_trans_try_yn" = 'Y'  THEN "i_cust_wait_time2"
+			               END AS LWT
+            			 , CASE WHEN "i_svc_history" LIKE '%SC03%' THEN 1 ELSE 0 END AS SELF_ANSWER
+			          FROM "ir_history_trg"@tmotion
+			         WHERE 1 = 1
+			           AND "i_date" BETWEEN #{SRCH_STR_DT} AND #{SRCH_END_DT})
+			 WHERE 1 = 1
+			   AND EXISTS (SELECT SMLCLAS_CD
+			                 FROM T_COM_CD_SMLCLAS
+			                WHERE 1 = 1
+			                  AND LRGCLAS_CD = 'IVR_INCL_PATH'
+			                  AND SMLCLAS_CD = SVC_CD
+			                  AND (REFN_CDVLU1 != 'CB' OR REFN_CDVLU1 IS NULL))
+			 GROUP BY C_DATE
+			        , CNTR_CD
+			        , SVC_CD
+			        
+		), CABACK AS (
+            SELECT SUBSTR(CABACK_DTM, 0, 8) AS CABACK_DT
+                 , COUNT(1) AS CABACK_CNT
+              FROM T_CABACK CBK
+              LEFT OUTER JOIN T_USR USR
+                ON CBK.CHRG_CNSLR_ID = USR.USR_ID
+             WHERE 1 = 1
+               AND CBK.CABACK_DTM BETWEEN #{SRCH_STR_DT} || '000000' AND #{SRCH_END_DT} || '235959'
+            <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+		       AND USR.CNTR_CD = #{CMB_CNTR_CD}
+		    </if>
+		    <if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+		       AND USR.GRP_CD = #{CMB_GRP_CD}
+		    </if>
+		    <if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+		       AND USR.TEAM_CD = #{CMB_TEAM_CD}
+		    </if>
+             GROUP BY SUBSTR(CABACK_DTM, 0, 8)
+        ), IB_DATA AS (
+            SELECT NVL(T1.C_DATE,T2.CABACK_DT) C_DATE
+                 , NVL(T1.OFFERED,0) OFFERED
+                 , NVL(T1.ANSWER,0) ANSWER
+                 , NVL(T1.ABANDON,0) ABANDON
+                 , NVL(T1.SVCLV,0) SVCLV
+                 , NVL(T1.AHT,0) AHT
+                 , NVL(T1.ASA,0) ASA
+                 , NVL(T1.LWT,0) LWT
+                 , NVL(T1.OTH_ABD,0) OTH_ABD
+                 , NVL(T1.RQRE_INFO_ABD,0) RQRE_INFO_ABD
+                 , NVL(T1.COMP_ABD,0) COMP_ABD
+                 , NVL(T1.SELF_SVC_ABD,0) SELF_SVC_ABD
+                 , NVL(T1.OTH_ANS,0) OTH_ANS
+                 , NVL(T1.RQRE_INFO_ANS,0) RQRE_INFO_ANS
+                 , NVL(T1.COMP_ANS,0) COMP_ANS
+                 , NVL(T1.SELF_SVC_ANS,0) SELF_SVC_ANS
+                 , NVL(T2.CABACK_CNT,0) CABACK_CNT
+              FROM 
+            (
+            SELECT  TO_CHAR(IVR.C_DATE) AS C_DATE
+                  , SUM(NVL(ANSWER,0)+NVL(ABANDON,0)) AS OFFERED
+                  , SUM(ANSWER)  AS ANSWER
+                  , SUM(ABANDON) AS ABANDON
+                  , ROUND((SUM(ANSWER) / DECODE(SUM(NVL(ANSWER,0)+NVL(ABANDON,0)), 0, 1, SUM(NVL(ANSWER,0)+NVL(ABANDON,0)))) * 100)    AS SVCLV
+                  , SUM(AHT) AS AHT
+                  , SUM(USR.ASA) AS ASA
+                  , MAX(LWT) AS LWT
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC00' THEN NVL(ANSWER,0)+NVL(ABANDON,0) ELSE 0 END) AS OTH_ABD      
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC01' THEN NVL(ANSWER,0)+NVL(ABANDON,0) ELSE 0 END) AS RQRE_INFO_ABD
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC02' THEN NVL(ANSWER,0)+NVL(ABANDON,0) ELSE 0 END) AS COMP_ABD     
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC03' THEN NVL(ANSWER,0)+NVL(ABANDON,0) ELSE 0 END) AS SELF_SVC_ABD
+                  --, SUM(SELF_OFFERED) AS SELF_SVC_ABD  
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC00' THEN ANSWER ELSE 0 END) AS OTH_ANS      
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC01' THEN ANSWER ELSE 0 END) AS RQRE_INFO_ANS
+                  , SUM(CASE WHEN IVR.SVC_CD = 'SC02' THEN ANSWER ELSE 0 END) AS COMP_ANS     
+                  , SUM(SELF_ANSWER) AS SELF_SVC_ANS  
+              FROM  IVR_HIS IVR
+                    LEFT OUTER JOIN
+                    (SELECT  A.C_DATE
+                           , A.CNTR_CD
+                           , A.SVC_CD
+                           , SUM(A.CONN_CNT) AS ANSWER
+                           , NVL(SUM(A.AHT), 0)   AS AHT
+                           , SUM(A.ASA)           AS ASA
+                       FROM  CALL_HIS A
+                             LEFT OUTER JOIN T_USR B
+                                 ON  (A.USER_ID = B.CTI_LGIN_ID)
+                      WHERE  1 = 1
+                        --AND  C.CNTR_CD IS NOT NULL
+		              /* 센터, 그룹, 팀 조회 조건 */
+		              <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+					     AND A.CNTR_CD = #{CMB_CNTR_CD}
+					  </if>
+					  <if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+					     AND B.GRP_CD = #{CMB_GRP_CD}
+					  </if>
+					  <if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+					     AND B.TEAM_CD = #{CMB_TEAM_CD}
+					  </if>
+                      GROUP BY A.C_DATE, A.CNTR_CD , A.SVC_CD) USR
+                       ON IVR.C_DATE = USR.C_DATE
+                      AND IVR.CNTR_CD = USR.CNTR_CD
+                      AND IVR.SVC_CD = USR.SVC_CD
+                      
+                      
+             GROUP BY IVR.C_DATE
+             ) T1
+             FULL OUTER JOIN CABACK T2
+             ON T1.C_DATE = T2.CABACK_DT
+		)
+		SELECT  1 AS SORT
+		      , C_DATE				AS DT
+		      , OFFERED				AS CALL_TOT                                    /* Total Calls */          
+		      , ANSWER				AS CALL_ANS                                    /* Ans. Calls */           
+		      , ABANDON				AS CALL_ABD                                    /* Aban. Calls */          
+		      , SVCLV       	    AS SVCE_LVL                                    /* Serv. Level */          
+		      , ROUND(AHT / DECODE(ANSWER, 0, 1, ANSWER))                 AS AHT   /* AHT */                  
+        	  , ROUND(ASA / DECODE(ANSWER, 0, 1, ANSWER))                 AS ASA   /* ASA */                  
+		      , LWT					AS LGST_WAIT                                   /* Longest waitting time */
+		      , OTH_ABD - OTH_ANS     			AS OTH_ABD
+              , RQRE_INFO_ABD - RQRE_INFO_ANS	AS RQRE_INFO_ABD
+              , COMP_ABD - COMP_ANS    			AS COMP_ABD
+              , 0					    		AS SELF_SVC_ABD
+              , OTH_ANS      
+              , RQRE_INFO_ANS
+              , COMP_ANS     
+              , SELF_SVC_ANS
+              , CABACK_CNT       
+		  FROM  IB_DATA 
+		 WHERE  1 = 1
+		UNION ALL
+		SELECT  -1                   	AS SORT 
+		      , CAST(FN_TRANS_NM('txt.1536', #{GBL_LANG_CD}) AS VARCHAR2(500)) AS DT
+		      , NVL(SUM(OFFERED), 0)    AS CALL_TOT                                                                      /* Total Calls */          
+		      , NVL(SUM(ANSWER), 0)     AS CALL_ANS                                                                      /* Ans. Calls */           
+		      , NVL(SUM(ABANDON), 0)    AS CALL_ABD                                                                      /* Aban. Calls */          
+		      , NVL(ROUND((SUM(ANSWER) / DECODE(SUM(OFFERED), 0, 1, SUM(OFFERED))) * 100), 0)         AS SVCE_LVL        /* Serv. Level */          
+		      , NVL(ROUND(SUM(AHT) / DECODE(SUM(ANSWER), 0, 1, SUM(ANSWER))), 0)                      AS AHT             /* AHT */                  
+		      , NVL(ROUND(SUM(ASA) / DECODE(SUM(ANSWER), 0, 1, SUM(ANSWER))), 0)                      AS ASA             /* ASA */                  
+		      , NVL(MAX(LWT), 0) 		AS LGST_WAIT                                                                     /* Longest waitting time */
+		      , SUM(OTH_ABD) - SUM(OTH_ANS)					AS OTH_ABD      
+              , SUM(RQRE_INFO_ABD) - SUM(RQRE_INFO_ANS)		AS RQRE_INFO_ABD
+              , SUM(COMP_ABD) - SUM(COMP_ANS)				AS COMP_ABD     
+              , 0											AS SELF_SVC_ABD 
+              , SUM(OTH_ANS)			AS OTH_ANS      
+              , SUM(RQRE_INFO_ANS)		AS RQRE_INFO_ANS
+              , SUM(COMP_ANS)			AS COMP_ANS     
+              , SUM(SELF_SVC_ANS)       AS SELF_SVC_ANS
+              , SUM(CABACK_CNT)			AS CABACK_CNT       
+		  FROM  IB_DATA
+		 WHERE  1 = 1
+		 ORDER BY SORT
+		        , DT
+    </select>
+</mapper>
+    

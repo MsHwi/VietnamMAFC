@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT1013">
+    
+    <!-- Search Out bound Performance Report.(아웃바운드 상담원 별 실적 통계) -->
+    <select id="SELECT_AGENT_PERF" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT1013.SELECT_AGENT_PERF : Search Out bound Performance Report.(아웃바운드 상담원 별 실적 통계) */
+        SELECT U.CNTR_CD                                                                    /* Center code(지점 코드) */
+             , FN_CNTR_CD_NM(U.CNTR_CD) AS CNTR_NM                                          /* Center name(지점 명) */
+             , U.GRP_CD                                                                     /* Group code(그룹 코드) */
+             , FN_GRP_CD_NM(U.CNTR_CD, U.GRP_CD) AS GRP_NM                                  /* Group name(그룹 명) */
+             , U.TEAM_CD                                                                    /* Team code(팀 코드) */
+             , FN_TEAM_CD_NM(U.CNTR_CD, U.GRP_CD, U.TEAM_CD) AS TEAM_NM                     /* Team name(팀 명) */
+             , U.USR_ID CNSLR_ID                                                            /* Counselor ID(상담원 ID) */
+             /*, FN_USR_NM(A.CNSLR_ID) AS USR_NM*/                                          /* Counselor name(상담원 명) */
+             , MAX(U.USR_NM) USR_NM                                                         /* Counselor name(상담원 명) */
+             , FN_GET_CMP_NM(A.CMP_ID) AS CMP_NM                                            /* Campaign name(캠패인 명) */
+             , COUNT(A.CMP_ID) AS ASG_CNT                                                   /* Assigned count (배정건수) */
+             , SUM(CASE WHEN B.LST_CNSL_MEDCLAS_CD = 'TS10' THEN 1 ELSE 0 END) AS TYP_TS10  /* Generate to lead count */
+             , SUM(CASE WHEN B.LST_CNSL_MEDCLAS_CD = 'TS30' THEN 1 ELSE 0 END) AS TYP_TS30  /* Calling count */
+             , SUM(CASE WHEN B.LST_CNSL_MEDCLAS_CD = 'TS20' THEN 1 ELSE 0 END) AS TYP_TS20  /* Closed data count */
+             , SUM(CASE WHEN B.LST_CNSL_MEDCLAS_CD IS NULL THEN 1 ELSE 0 END) AS NOT_CALL   /* Generate to lead count */
+             , COUNT(E.APP_ID_C) AS APP                                                     /* APP */
+             , COUNT(E.APPROVED) AS APPROVED                                                /* APPROVED */
+             , COUNT(E.DISBURSED) AS DISBURSED                                              /* DISBURSED */
+             , NVL(SUM(E.AMTFIN),0) AS AMTFIN                                               /* DISBURSED_AMTFIN */
+          FROM T_CALL_LIST A
+          LEFT JOIN T_CALL_LIST_RSLT B
+            ON A.CMP_ID = B.CMP_ID
+           AND A.CUST_NO = B.CUST_NO
+           AND A.CALL_LIST_SEQNO = B.CALL_LIST_SEQNO
+          LEFT OUTER JOIN T_CUST_MSTR C
+            ON A.CUST_NO = C.CUST_NO
+          LEFT OUTER JOIN T_LOAN_AGREE D
+            ON A.CMP_ID = D.CMP_ID
+           AND A.CUST_NO = D.CUST_NO
+           AND A.CALL_LIST_SEQNO = D.CALL_LIST_SEQNO
+          LEFT OUTER JOIN (
+              <!-- SELECT V.CUSTOMER_ID
+                   , V.APP_ID_C
+                   , V.STATUS
+                   , 'APP' APP
+                   , CASE WHEN V.STATUS in ('End','Post Sanc Doc','POS Stage','Disbursal Detail','A','X') THEN 'APPROVED' END APPROVED
+                   , CASE WHEN V.STATUS IN ('A') THEN 'DISBURSED' END DISBURSED
+                   , V.AMTFIN
+                FROM
+                (
+                     SELECT NVL(LESSEEID,CUST_ID_N) CUSTOMER_ID
+                         , NVL(AGREEMENTID,APP_ID_C) APP_ID_C
+                         , NVL(STATUS,LAA_LAST_ACTIVITY_ID) STATUS
+                         , W.AMTFIN
+                      FROM T_INTF_LOS_APP_APPLICATIONS V
+                      LEFT OUTER JOIN T_INTF_LEA_AGREEMENT_DTL W
+                        ON (V.CUST_ID_N = W.LESSEEID)
+                     WHERE V.LAA_LAST_ACTIVITY_ID IS NOT NULL
+                       AND NVL(STATUS,LAA_LAST_ACTIVITY_ID) NOT IN ('C', 'Quick Data Entry') -->
+                    SELECT V.APP_ID_C
+<!--                          , V.STATUS -->
+                         <!-- , CASE WHEN V.STATUS in ('End','Post Sanc Doc','POS Stage','Disbursal Detail','A','X') THEN 'APPROVED' END APPROVED
+                         , CASE WHEN V.STATUS IN ('A') THEN 'DISBURSED' END DISBURSED -->
+                         , CASE WHEN V.STATUS in ('POS Stage') THEN 'APPROVED' END APPROVED
+                         , CASE WHEN V.STATUS IN ('End') THEN 'DISBURSED' END DISBURSED
+                         , V.AMTFIN
+                         , V.CUST_NO
+                      FROM
+                      (
+                          <!-- SELECT V.LAA_SOURCE_INSPECTORID_N
+                               , W.INSPECTORNAME
+                               , R.CUST_NO
+                               , V.LAA_LAST_ACTIVITY_ID AS STATUS
+                               , V.APP_ID_C
+                               , X.AMTFIN
+                            FROM T_INTF_LOS_APP_APPLICATIONS V
+                               , T_INTF_AGENT_CODE W
+                               , T_CUST_MSTR R
+                               , T_INTF_LEA_AGREEMENT_DTL X
+                           WHERE V.LAA_SOURCE_INSPECTORID_N = W.INSPECTORID
+                             AND R.F1_CUST_NO = V.CUST_ID_N
+                             AND V.CUST_ID_N = X.LESSEEID
+                             AND W.INSPECTORNAME LIKE 'TE%'
+                             AND V.CUST_ID_N IS NOT NULL -->
+                          SELECT NVL(AGREEMENTID,APP_ID_C) APP_ID_C
+                               , V.LAA_LAST_ACTIVITY_ID AS STATUS
+                               , W.AMTFIN
+                               , R.CUST_NO
+                            FROM T_INTF_LOS_APP_APPLICATIONS V
+                            LEFT OUTER JOIN T_INTF_LEA_AGREEMENT_DTL W
+                              ON (V.CUST_ID_N = W.LESSEEID)
+                            LEFT OUTER JOIN T_INTF_AGENT_CODE CD
+                              ON V.LAA_SOURCE_INSPECTORID_N = CD.INSPECTORID
+                            LEFT OUTER JOIN T_CUST_MSTR R
+                              ON V.CUST_ID_N = R.F1_CUST_NO
+                           WHERE V.LAA_LAST_ACTIVITY_ID IS NOT NULL
+                             AND NVL(STATUS,LAA_LAST_ACTIVITY_ID) NOT IN ('C', 'Quick Data Entry')
+                             AND CD.INSPECTORNAME LIKE 'TE%'
+                             AND V.CUST_ID_N IS NOT NULL
+                          <!-- SELECT NVL(LESSEEID,CUST_ID_N) CUSTOMER_ID
+                               , NVL(AGREEMENTID,APP_ID_C) APP_ID_C
+                               , NVL(STATUS,LAA_LAST_ACTIVITY_ID) STATUS
+                               , W.AMTFIN
+                               , R.CUST_NO
+                            FROM T_INTF_LOS_APP_APPLICATIONS V
+                            LEFT OUTER JOIN T_INTF_LEA_AGREEMENT_DTL W
+                              ON (V.CUST_ID_N = W.LESSEEID)
+                           LEFT  JOIN T_INTF_AGENT_CODE CD
+                              ON V.LAA_SOURCE_INSPECTORID_N = CD.INSPECTORID
+                           LEFT JOIN T_CUST_MSTR R
+                              ON V.CUST_ID_N = R.F1_CUST_NO
+                           WHERE V.LAA_LAST_ACTIVITY_ID IS NOT NULL
+                             AND NVL(STATUS,LAA_LAST_ACTIVITY_ID) NOT IN ('C', 'Quick Data Entry')
+                             AND CD.INSPECTORNAME LIKE 'TE%'
+                             AND V.CUST_ID_N IS NOT NULL -->
+                      ) V
+          ) E
+            ON A.CUST_NO = E.CUST_NO
+           AND D.AGREE_ID = E.APP_ID_C
+            
+         INNER JOIN T_USR U
+            ON A.CNSLR_ID = U.USR_ID
+            
+         WHERE A.CNSLR_ID IS NOT NULL
+           AND A.CMP_ID IN (SELECT CMP_ID FROM T_CMP WHERE CMP_TYP = 'TS')
+           AND A.ASGN_DT <![CDATA[ >= ]]> #{SRCH_STR_DT}
+           AND A.ASGN_DT <![CDATA[ <= ]]> #{SRCH_END_DT}
+           <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+               AND U.CNTR_CD = #{CMB_CNTR_CD}
+           </if>
+           <if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+               AND U.GRP_CD = #{CMB_GRP_CD}
+           </if>
+           <if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+               AND U.TEAM_CD = #{CMB_TEAM_CD}
+           </if>
+           <if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+               AND U.USR_ID = #{CMB_USR_ID}
+           </if>
+           <if test="CMP_ID != null and CMP_ID.size() > 0">
+               AND A.CMP_ID IN (<foreach item="ITEM" collection="CMP_ID" separator=",">#{ITEM}</foreach>)
+           </if>
+         GROUP BY U.CNTR_CD, U.GRP_CD, U.TEAM_CD, U.USR_ID, A.CMP_ID
+         ORDER BY U.CNTR_CD, U.GRP_CD, U.TEAM_CD, U.USR_ID, A.CMP_ID
+    </select>
+    
+      <!-- Search Campaign.(캠페인 조회) -->
+    <select id="SELECT_CMP" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT1013.SELECT_CMP : Campaign search(캠페인 조회) */
+        SELECT CMP_NM AS TEXT
+             , CMP_ID AS CODE
+          FROM T_CMP
+         WHERE CMP_TYP = 'TS'
+         ORDER BY CMP_ID
+    </select>
+</mapper>
+    

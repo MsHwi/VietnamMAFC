@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT1021">
+    
+    <!-- Search TOTUP.(TOTUP 조회) -->
+    <select id="SELECT_TOTUP" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT1021.SELECT_TOTUP : TOTUP search(TOTUP 조회) */
+            SELECT CMP.CMP_NM                                                          AS CMP                      /* Campaign */
+                 , FN_TEAM_CD_NM(USR.CNTR_CD, USR.GRP_CD, USR.TEAM_CD)                 AS TEAM                     /* Team */
+                 , MAX('[' || USR.USR_ID || '] ' || USR.USR_NM)                        AS AGEN_CDNM                /* Agent */
+                 , COUNT(*)                                                            AS ASGN_DATA                /* Assigned Data */
+                 , SUM(CASE WHEN RSLT.LST_CNSL_MEDCLAS_CD = 'TU20' THEN 1 ELSE 0 END)  AS RSV_CUNT_TOT             /* Total Reserved Count */
+                 , SUM(CASE WHEN RSLT.LST_CNSL_MEDCLAS_CD = 'TU30' THEN 1 ELSE 0 END)  AS PEND_CUNT_TOT            /* Total Pending Count */
+                 , SUM(CASE WHEN RSLT.LST_CNSL_MEDCLAS_CD = 'TU10' THEN 1 ELSE 0 END)  AS FAILCALL_CUNT_TOT        /* Total Fail to Call Count */
+                 , SUM(CASE WHEN RSLT.CUST_NO IS NULL THEN 1 ELSE 0 END)               AS NOT_TRY_CUNT             /* Not try Count */
+              FROM T_CALL_LIST CALL
+             INNER JOIN T_CMP CMP
+                ON CMP.CMP_ID = CALL.CMP_ID 
+              LEFT OUTER JOIN T_CALL_LIST_RSLT RSLT 
+                ON CALL.CMP_ID          = RSLT.CMP_ID
+               AND CALL.CUST_NO         = RSLT.CUST_NO
+               /* 2018.10.25 Modify, Not Try count*/
+<!--                AND CALL.CNSLR_ID        = RSLT.CNSLR_ID -->
+               AND CALL.CALL_LIST_SEQNO = RSLT.CALL_LIST_SEQNO
+
+			 INNER JOIN T_USR USR
+			    ON CALL.CNSLR_ID = USR.USR_ID
+                
+             WHERE CMP.CMP_TYP = 'TU'
+               AND CALL.CNSLR_ID IS NOT NULL
+               AND CALL.REG_DTM BETWEEN #{SRCH_STR_DT} || '000000' AND #{SRCH_END_DT} || '999999'
+             <if test="CMB_CMP_CD != null and CMB_CMP_CD.size() > 0 ">
+               AND CALL.CMP_ID IN (<foreach item="ITEM" collection="CMB_CMP_CD" separator=",">#{ITEM}</foreach>)
+             </if>
+             <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+                 AND USR.CNTR_CD = #{CMB_CNTR_CD}
+             </if>
+             <if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+                 AND USR.GRP_CD = #{CMB_GRP_CD}
+             </if>
+             <if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+                 AND USR.TEAM_CD = #{CMB_TEAM_CD}
+             </if>
+             GROUP BY CMP.CMP_NM, USR.CNTR_CD, USR.GRP_CD, USR.TEAM_CD, USR.USR_ID, CMP.CMP_ID
+             ORDER BY CMP.CMP_NM, USR.USR_ID
+    </select>
+    
+    <!-- Search Campaign.(캠페인 조회) -->
+    <select id="SELECT_CMP" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT1021.SELECT_CMP : Campaign search(캠페인 조회) */
+            SELECT CMP_NM AS TEXT,
+                   CMP_ID AS CODE
+              FROM T_CMP
+             WHERE CMP_TYP = 'TU'
+               AND CMP_ID != 'C001001000002' /* 콜백 캠페인 제외 */
+               AND END_DT <![CDATA[ >= ]]> TO_CHAR(SYSDATE, 'YYYMMDD')
+             ORDER BY CMP_ID
+    </select>
+    
+    <!-- Search Team.(팀 조회) -->
+    <select id="SELECT_TEAM" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT1021.SELECT_TEAM : Team search(팀 조회) */
+            SELECT TEAM_CD_NM AS TEXT,
+                   TEAM_CD AS CODE
+              FROM T_TEAM_CD   
+             WHERE USE_YN  = 'Y'
+             ORDER BY SRT_SEQ, TEAM_CD_NM
+    </select>
+</mapper>
+    

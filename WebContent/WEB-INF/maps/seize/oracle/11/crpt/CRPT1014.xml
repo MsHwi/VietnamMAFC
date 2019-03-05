@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT1014">
+	
+	<!-- Search Campaign (캠페인 조회) -->
+	<select id="SELECT_CMP" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+		/* CRPT1014.SELECT_CMP : Search Campaign (캠페인 조회) */
+		SELECT CMP_ID AS CODE /* Campaign ID(캠페인ID) */
+			 , CMP_NM AS TEXT /* Campaign Name(캠페인 명) */
+		  FROM T_CMP
+		 ORDER BY CMP_ID
+	</select>
+	
+	<!-- Search Lead Performance -->
+	<select id="SELECT_LEAD_PFMC" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+		/* CRPT1014.SELECT_LEAD_PFMC : Search Lead Performance */
+		SELECT FN_CNTR_CD_NM(A.CNTR_CD) AS CNTR_NM									/* Center Name(센터명) */
+			 , FN_GRP_CD_NM(A.CNTR_CD, A.GRP_CD) AS GRP_NM							/* Group Code(그룹명) */
+			 , FN_TEAM_CD_NM(A.CNTR_CD, A.GRP_CD, A.TEAM_CD) AS TEAM_NM				/* Team Code(팀명) */
+			 , A.USR_NM AS CNSLR_NM													/* Agent Name(상담원 명) */
+			 , FN_CUST_NM(A.CUST_NO) AS CUST_NM										/* Customer Name(고객명) */
+			 , A.ASGN_DT															/* Assign Date(배정일자) */
+			 , FN_GET_CMP_NM(A.CMP_ID) AS CMP_NM									/* Campaign Name(캠페인명) */
+			 , FN_CNSL_CD_NM(A.LST_CNSL_MEDCLAS_CD, 'vi-VN') AS CNSL_MEDCLAS_NM		/* Last Counselling Medium Class Code(최종 상담 중분류 코드) */
+			 , A.AGREE_ID															/* Old Agree ID */
+			 , A.NEW_AGREE_ID														/* New Agree ID */
+			 , B.LOAN_STATUS														/* Loan Status(대출 상태) */
+		  FROM (
+				SELECT CALL.CMP_ID
+					 , CALL.CUST_NO
+					 , CALL.CNSLR_ID
+					 , CALL.ASGN_DT
+					 , USR.USR_NM
+					 , NVL(DTLS.APPL_ID, LOAN.AGREE_ID) AS AGREE_ID
+					 , DTLS.APPL_ID_N AS NEW_AGREE_ID
+					 , RSLT.LST_CNSL_MEDCLAS_CD
+					 , USR.CNTR_CD
+					 , USR.GRP_CD
+					 , USR.TEAM_CD
+				  FROM T_CALL_LIST CALL
+				 INNER JOIN T_CALL_LIST_DTLS DTLS
+					ON CALL.CMP_ID = DTLS.CMP_ID
+				   AND CALL.CUST_NO = DTLS.CUST_NO
+				   AND CALL.CALL_LIST_SEQNO = DTLS.CALL_LIST_SEQNO
+				 INNER JOIN T_CALL_LIST_RSLT RSLT
+					ON CALL.CMP_ID = RSLT.CMP_ID
+				   AND CALL.CUST_NO = RSLT.CUST_NO
+				   AND CALL.CALL_LIST_SEQNO = RSLT.CALL_LIST_SEQNO
+				  LEFT OUTER JOIN T_CUR_HIST CUR
+					ON RSLT.CNSL_SEQNO = CUR.CNSL_SEQNO
+				  LEFT OUTER JOIN T_LOAN_AGREE LOAN
+					ON CALL.CMP_ID = LOAN.CMP_ID
+				   AND CALL.CUST_NO = LOAN.CUST_NO
+				   AND CALL.CALL_LIST_SEQNO = LOAN.CALL_LIST_SEQNO
+				 INNER JOIN T_USR USR
+				    ON CALL.CNSLR_ID = USR.USR_ID
+				 WHERE CALL.ASGN_DT <![CDATA[>=]]> #{SRCH_STR_DT}
+				   AND CALL.ASGN_DT <![CDATA[<=]]> #{SRCH_END_DT}
+				<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+					AND USR.CNTR_CD = #{CMB_CNTR_CD}
+				</if>
+				<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+					AND USR.GRP_CD = #{CMB_GRP_CD}
+				</if>
+				<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+					AND USR.TEAM_CD = #{CMB_TEAM_CD}
+				</if>
+				<if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+					AND USR.USR_ID = #{CMB_USR_ID}
+				</if>
+				<if test="CMB_CMP_ID != null and CMB_CMP_ID.size() > 0 ">
+					AND CALL.CMP_ID IN (<foreach item="ITEM" collection="CMB_CMP_ID" separator=",">#{ITEM}</foreach>)
+				</if>
+				<if test="CMB_CNSL_CD_L != null and CMB_CNSL_CD_L != ''">
+					AND CUR.CNSL_LRGCLAS_CD = #{CMB_CNSL_CD_L}
+				</if>
+				<if test="CMB_CNSL_CD_M != null and CMB_CNSL_CD_M != ''">
+					AND CUR.CNSL_MEDCLAS_CD = #{CMB_CNSL_CD_M}
+				</if>
+		  ) A
+		  LEFT OUTER JOIN (
+							SELECT NVL(STATUS,LAA_LAST_ACTIVITY_ID) LOAN_STATUS
+								 , APP_ID_C
+							  FROM T_INTF_LOS_APP_APPLICATIONS V
+							  LEFT JOIN T_INTF_LEA_AGREEMENT_DTL W
+								ON (V.CUST_ID_N = W.LESSEEID)
+							 WHERE V.LAA_LAST_ACTIVITY_ID IS NOT NULL
+		  ) B
+			ON A.AGREE_ID = B.APP_ID_C
+		 ORDER BY A.CNTR_CD,A.GRP_CD,A.TEAM_CD,A.CNSLR_ID
+<!-- 	SELECT A.*
+		 , (
+			SELECT NVL(STATUS,LAA_LAST_ACTIVITY_ID) STATUS
+			  FROM T_INTF_LOS_APP_APPLICATIONS V
+			  LEFT JOIN T_INTF_LEA_AGREEMENT_DTL W
+				ON (V.CUST_ID_N = W.LESSEEID)
+			 WHERE V.LAA_LAST_ACTIVITY_ID IS NOT NULL 
+			   AND V.APP_ID_C = A.AGREE_ID
+			   AND ROWNUM = 1
+		 ) AS LOAN_STATUS /* Loan Status(Loan 상태)*/
+		  FROM (
+				SELECT USR.CNTR_CD																		/* Center Code(센터코드) */
+					 , FN_CNTR_CD_NM(USR.CNTR_CD) AS CNTR_NM											/* Center Name(센터명) */
+					 , USR.GRP_CD																		/* Group Code(그룹코드) */
+					 , FN_GRP_CD_NM(USR.CNTR_CD, USR.GRP_CD) AS GRP_NM									/* Group Code(그룹명) */
+					 , USR.TEAM_CD																		/* Team Code(팀코드) */
+					 , FN_TEAM_CD_NM(USR.CNTR_CD, USR.GRP_CD, USR.TEAM_CD) AS TEAM_NM					/* Team Code(팀명) */
+					 , USR.USR_ID CNSLR_ID																/* Agent ID(상담원 ID) */
+					 , USR.USR_NM AS CNSLR_NM															/* Agent Name(상담원 명) */
+					 , FN_CUST_NM(CALL.CUST_NO) AS CUST_NM												/* Customer Name(고객명) */
+					 , CALL.ASGN_DT																		/* Assign Date(배정일자) */
+					 , CALL.CMP_ID																		/* Campaign ID(캠페인 ID) */
+					 , FN_GET_CMP_NM(CALL.CMP_ID) AS CMP_NM												/* Campaign Name(캠페인명) */
+					 , FN_CNSL_CD_NM(RSLT.LST_CNSL_MEDCLAS_CD, 'vi-VN') AS CNSL_MEDCLAS_NM				/* Center Code(센터코드) */
+					 , RSLT.LST_CNSL_SMLCLAS_CD															/* Finn Status(FINN 상태)*/
+					 , NVL(DTLS.APPL_ID, LOAN.AGREE_ID) AS AGREE_ID										/* Old Agree ID */
+					 , DTLS.APPL_ID_N AS NEW_AGREE_ID													/* New Agree ID */
+				  FROM T_CALL_LIST CALL
+				 INNER JOIN T_CALL_LIST_RSLT RSLT
+					ON CALL.CMP_ID = RSLT.CMP_ID
+				   AND CALL.CUST_NO = RSLT.CUST_NO
+				   AND CALL.CALL_LIST_SEQNO = RSLT.CALL_LIST_SEQNO
+				   AND CALL.CNSLR_ID = RSLT.CNSLR_ID
+				  LEFT OUTER JOIN T_CALL_LIST_DTLS DTLS
+					ON CALL.CMP_ID = DTLS.CMP_ID
+				   AND CALL.CUST_NO = DTLS.CUST_NO
+				   AND CALL.CALL_LIST_SEQNO = DTLS.CALL_LIST_SEQNO
+				  LEFT OUTER JOIN T_LOAN_AGREE LOAN
+					ON CALL.CMP_ID = LOAN.CMP_ID
+				   AND CALL.CUST_NO = LOAN.CUST_NO
+				   AND CALL.CALL_LIST_SEQNO = LOAN.CALL_LIST_SEQNO
+				 INNER JOIN T_CUR_HIST CUR	/* Counseling history(상담 이력) Table */
+					ON RSLT.CNSL_SEQNO = CUR.CNSL_SEQNO
+					
+				 INNER JOIN T_USR USR
+				    ON CALL.CNSLR_ID = USR.USR_ID
+				    
+				 WHERE CALL.ASGN_DT <![CDATA[>=]]> #{SRCH_STR_DT}
+				   AND CALL.ASGN_DT <![CDATA[<=]]> #{SRCH_END_DT}
+				<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+					AND USR.CNTR_CD = #{CMB_CNTR_CD}
+				</if>
+				<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+					AND USR.GRP_CD = #{CMB_GRP_CD}
+				</if>
+				<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+					AND USR.TEAM_CD = #{CMB_TEAM_CD}
+				</if>
+				<if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+					AND USR.USR_ID = #{CMB_USR_ID}
+				</if>
+				<if test="CMB_CMP_ID != null and CMB_CMP_ID.size() > 0 ">
+					AND CALL.CMP_ID IN (<foreach item="ITEM" collection="CMB_CMP_ID" separator=",">#{ITEM}</foreach>)
+				</if>
+				<if test="CMB_CNSL_CD_L != null and CMB_CNSL_CD_L != ''">
+					AND CUR.CNSL_LRGCLAS_CD = #{CMB_CNSL_CD_L}
+				</if>
+				<if test="CMB_CNSL_CD_M != null and CMB_CNSL_CD_M != ''">
+					AND CUR.CNSL_MEDCLAS_CD = #{CMB_CNSL_CD_M}
+				</if>
+			  ) A
+			  ORDER BY A.CNTR_CD,A.GRP_CD,A.TEAM_CD,A.CNSLR_ID  -->
+	</select>
+	
+</mapper>
+	

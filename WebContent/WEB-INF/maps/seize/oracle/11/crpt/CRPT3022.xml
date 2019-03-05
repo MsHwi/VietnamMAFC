@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT3022">
+
+    <!-- SELECT_AGREE_DTLS : Search agree detail(계약 상세조회) -->
+    <select id="SELECT_AGREE_DTLS" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        /* CRPT3022.SELECT_AGREE_DTLS : Search agree detail(계약 상세조회) */
+            SELECT A.APP_ID_C AS AGREE_ID
+                 , D.CUST_NM
+                 , TO_CHAR(A.CREATION_DATE, 'YYYYMMDD') AS APP_DAY
+                 , A.LAA_LAST_ACTIVITY_ID AS TYPE
+                 , DECODE(G.CMP_TYP, 'TS', 'self-employed', 'TU', 'topup') AS LOAN_TYPE
+                 , C.AMTFIN
+                 , TO_CHAR(B.MODIFIED_ON, 'YYYYMMDD') AS LASTED_ACT
+              FROM T_INTF_LOS_APP_APPLICATIONS A
+             INNER JOIN MACAS.LOS_APP_APPLICATIONS@FINNONE B
+                ON A.APP_ID_C = B.APP_ID_C
+              LEFT OUTER JOIN T_INTF_LEA_AGREEMENT_DTL C
+                ON A.CUST_ID_N = C.LESSEEID
+              LEFT JOIN T_CUST_MSTR D
+                ON A.CUST_ID_N = D.F1_CUST_NO
+              LEFT OUTER JOIN T_CALL_LIST E
+                ON D.CUST_NO = E.CUST_NO
+              LEFT OUTER JOIN T_LOAN_AGREE F
+                ON A.APP_ID_C = F.AGREE_ID
+               AND E.CUST_NO = F.CUST_NO
+              LEFT OUTER JOIN T_CMP G
+                ON E.CMP_ID = G.CMP_ID
+             WHERE A.CREATION_DATE <![CDATA[>=]]> TO_DATE(#{SRCH_STR_DT} || '000000', 'YYYYMMDDHH24MISS')
+               AND A.CREATION_DATE <![CDATA[<=]]> TO_DATE(#{SRCH_END_DT} || '235959', 'YYYYMMDDHH24MISS')
+               AND F.AGREE_ID IS NOT NULL
+             ORDER BY TO_CHAR(A.CREATION_DATE, 'YYYYMMDD')
+                    , A.LAA_LAST_ACTIVITY_ID
+    </select>
+	
+</mapper>
+    

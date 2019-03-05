@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><!--Converted at: Sat Apr 02 22:02:53 KST 2016-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CCUS1020">
+
+    <!-- Search Customer Management Status (고객 관리 상태 조회) -->
+    <select id="SELECT_MNG_STT_INFO" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        /* CCUS1020.SELECT_MNG_STT_INFO : Search Customer Management Status (고객 관리 상태 조회) */
+        
+         SELECT A.CUST_NO                                           /* Customer No */
+              , A.CUST_NM                                           /* Customer Name */
+              , A.MGR_STS_CD                                        /* Management Status Code */
+              , A.CNSLR_ID AS REG_ID                                /* Agent Id */
+              , A.REG_DTM  AS CUR_STR_DTM                           /* Contact Date */
+              /*, '[' || A.CNSLR_ID || '] ' || FN_USR_NM(A.CNSLR_ID) AS CNSLR_NM*/         /* Agent Name  */
+              , '[' || U.USR_ID || '] ' || U.USR_NM AS CNSLR_NM         /* Agent Name  */
+              , FN_SMLCD_NM('MGNT_ST', MGR_STS_CD, #{GBL_LANG_CD}, '') AS MNG_STS_NM   /* Management Status Name */
+              , D.CUST_INFW_DV
+              , FN_SMLCD_NM('CUST_INFW_DV', D.CUST_INFW_DV, #{GBL_LANG_CD}, '') AS CUST_INFW_NM
+           FROM T_CUST_MGR_STS_HIST A
+          INNER JOIN T_CALL_HIST B
+             ON A.CALL_CNSL_ID = B.CALL_CNSL_ID
+           LEFT OUTER JOIN T_CUST_MSTR D
+             ON A.CUST_NO = D.CUST_NO
+          INNER JOIN T_USR U
+             ON A.CNSLR_ID = U.USR_ID
+         WHERE A.REG_DTM IN (
+                         SELECT MAX(REG_DTM) AS REG_DTM
+                           FROM T_CUST_MGR_STS_HIST
+                          WHERE REG_DTM <![CDATA[ >= ]]> #{SRCH_STR_DT} || '000000'
+                            AND REG_DTM <![CDATA[ <= ]]> #{SRCH_END_DT} || '999999'
+                          GROUP BY CUST_NO
+                       )
+           <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''" >
+               AND U.CNTR_CD = #{CMB_CNTR_CD}
+           </if>
+           <if test="CMB_GRP_CD != null and CMB_GRP_CD != ''" >
+               AND U.GRP_CD  = #{CMB_GRP_CD}
+           </if>
+           <if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''" >
+               AND U.TEAM_CD = #{CMB_TEAM_CD}
+           </if>
+           <if test="CMB_USR_ID != null and CMB_USR_ID != ''" >
+               AND U.USR_ID = #{CMB_USR_ID}
+           </if>
+           <if test="CUST_NM != null and CUST_NM != ''">
+               AND UPPER(A.CUST_NM) LIKE UPPER(#{CUST_NM}) || '%'
+           </if>
+           <if test="MNG_STS_CD != null and MNG_STS_CD.size() > 0" >
+               AND A.MGR_STS_CD IN (<foreach item="ITEM" collection="MNG_STS_CD" separator=",">#{ITEM}</foreach>)
+           </if>
+           <if test="CNNT_TEL_NO != null and CNNT_TEL_NO != ''">
+           AND B.CNNT_TEL_NO LIKE #{CNNT_TEL_NO} || '%'
+       </if>
+         ORDER BY A.REG_DTM DESC
+    </select>
+    
+    <!-- Search Management Status Registration History (관리상태등록이력 조회) -->
+    <select id="SELECT_MNG_STT_HIST" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        /* CCUS1020.SELECT_MNG_STT_HIST : Search Management Status Registration History (관리상태등록이력 조회) */
+        SELECT REG_DTM                                                              /* Registration Date */
+             , CNSLR_ID                                                             /* Agent Id */
+             , REG_CTT                                                              /* Registration Reason */
+             , MGR_STS_CD                                                           /* Management Status Code */
+             , FN_SMLCD_NM('MGNT_ST', MGR_STS_CD, #{GBL_LANG_CD}, '') AS MNG_STS_NM /* Management Status Name */
+             , '[' || CNSLR_ID || '] ' || FN_USR_NM(CNSLR_ID) AS USR_NM             /* Agent Name */
+          FROM T_CUST_MGR_STS_HIST 
+         WHERE CUST_NO = #{CUST_NO}
+         ORDER BY REG_DTM DESC
+    </select>
+</mapper>

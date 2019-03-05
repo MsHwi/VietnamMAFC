@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT2020">
+
+	<!-- Search Complaint by Department.(부서별 민원 조회) -->
+	<select id="SELECT_CMLN_DEPT" resultType="java.util.HashMap"	parameterType="java.util.HashMap">
+	    /* CRPT2020.SELECT_CMLN_DEPT : Complaint by Department search (부서별 민원 조회) */
+			SELECT DEPT.CVAP_DEPT_NM                                                                 AS DEPT,            /* Customer Name */                    
+			       DEPT.CVAP_DEPT_CD                                                                 AS DEPT_CD,         /* Department Code */
+			       NVL(COUNT(CH.CNSL_SEQNO), '0')                                                    AS TOT_CASE,        /* Total cases */
+			       NVL(COUNT(DECODE(CH.CVAP_ST_CD, '2', '1')), '0')                                  AS CLSD_CASE,       /* Closed cases */ 
+			       NVL((COUNT(DISTINCT CPH.CNSL_SEQNO)-COUNT(DECODE(CH.CVAP_ST_CD, '2', '1'))), '0') AS PRGR_CASE,       /* Progressing cases */      
+			       NVL((COUNT(DISTINCT CH.CNSL_SEQNO) - (COUNT(DISTINCT CPH.CNSL_SEQNO)-COUNT(DECODE(CH.CVAP_ST_CD, '2', '1')))
+			        - COUNT(DECODE(CH.CVAP_ST_CD, '2', '1'))), '0')                                  AS INIT_CASE        /* Initiate cases */
+			  FROM T_CUR_HIST CH
+			     
+			  LEFT JOIN 
+			  (SELECT CNSL_SEQNO                            
+			     FROM T_CVAP_PROC_HIST
+			 GROUP BY CNSL_SEQNO) CPH    
+			     
+			    ON CH.CNSL_SEQNO = CPH.CNSL_SEQNO
+	         INNER JOIN T_CNSL_HIST_CVAP_DEPT CHCD
+                ON CH.CNSL_SEQNO = CHCD.CNSL_SEQNO  
+	         INNER JOIN T_CVAP_DEPT DEPT 
+                ON CHCD.CVAP_DEPT_CD = DEPT.CVAP_DEPT_CD
+               AND CH.CNSL_MEDCLAS_CD = 'IB20'	         
+	         	             
+	           WHERE CH.REG_DTM BETWEEN #{SRCH_STR_DT} || '000000' AND #{SRCH_END_DT} || '999999' 
+                 AND CH.CNSL_SEQNO IN (
+		   
+                    SELECT CNSL_SEQNO 
+                      FROM T_CNSL_HIST_CVAP_DEPT
+                     WHERE 1 = 1
+			   		  <if test="IS_MANG == &quot;Y&quot; ">
+			   		   AND CVAP_DEPT_CD IN (SELECT CVAP_DEPT_CD FROM T_CVAP_OFCR WHERE CVAP_OFCR_ID = #{GBL_USR_ID})
+			   		  </if>
+			   		  <if test="CMB_DEPT_CD != null and CMB_DEPT_CD.size() > 0 "> 
+			   		   AND CVAP_DEPT_CD IN (<foreach item="ITEM" collection="CMB_DEPT_CD" separator=",">#{ITEM}</foreach>)
+			   		  </if>
+		        )
+	       
+			 GROUP BY DEPT.CVAP_DEPT_NM, DEPT.CVAP_DEPT_CD
+			 ORDER BY TO_NUMBER(DEPT.CVAP_DEPT_CD);	    
+	</select>
+	
+	   <!-- Search Complaint Detail.(민원 세부 조회) -->
+    <select id="SELECT_CMLN_DETL" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT2020.SELECT_CMLN_DETL : Complaint Detail search (민원 세부 조회) */
+            SELECT CH.CUST_NM           AS CUST_NM,                /* Customer Name */
+                   CH.REALNM_NO         AS AGR_IDCMND,             /* Agree ID */
+                   DNM.CVAP_DEPT_NM     AS DEPT_NM,                	   /* Department Name */
+                   D.MEMO 				AS LAST_CUR_RMK ,			/* Last cur memo */
+                   CPH.RMK              AS CNTNT,                  /* Content */
+                   FN_SMLCD_NM('PRIO', CH.CVAP_RT_PRIO, #{GBL_LANG_CD}, '')     AS PRIO, /* Priority */
+                   (CASE WHEN CH.CVAP_ST_CD='2' THEN FN_SMLCD_NM('CVAP_PROC_ST', CH.CVAP_ST_CD, #{GBL_LANG_CD}, '') ELSE  
+                   (CASE WHEN CPH.CNSL_SEQNO IS NOT NULL THEN FN_SMLCD_NM('CVAP_PROC_ST', '1', #{GBL_LANG_CD}, '') ELSE FN_SMLCD_NM('CVAP_PROC_ST', '0', #{GBL_LANG_CD}, '') END
+                   ) END )              AS STAT,                   /* Status */
+                   CH.REG_DTM           AS CRTD,                   /* Created */
+                   CH.REG_NM            AS CRTD_BY                 /* Created by */
+             FROM T_CUR_HIST CH
+             
+             LEFT JOIN  (SELECT CNSL_SEQNO,
+                                CVAP_PROC_NO,
+                                RMK
+                          FROM (SELECT CNSL_SEQNO,
+                                       CVAP_PROC_NO,
+                                       RMK,
+                                       RANK() OVER(PARTITION BY CNSL_SEQNO
+                                         ORDER BY CVAP_PROC_NO DESC) RANK
+                                  FROM T_CVAP_PROC_HIST)
+                         WHERE RANK = 1) CPH
+             ON CH.CNSL_SEQNO = CPH.CNSL_SEQNO
+             INNER JOIN (
+                SELECT CNSL_SEQNO
+                     , LISTAGG(A.CVAP_DEPT_NM,',') WITHIN GROUP (ORDER BY A.CVAP_DEPT_CD) AS CVAP_DEPT_NM
+                  FROM T_CVAP_DEPT A
+                  JOIN T_CNSL_HIST_CVAP_DEPT B
+                    ON A.CVAP_DEPT_CD = B.CVAP_DEPT_CD
+                 GROUP BY B.CNSL_SEQNO
+             ) DNM
+             ON DNM.CNSL_SEQNO = CH.CNSL_SEQNO
+             LEFT JOIN (
+				SELECT * FROM
+				(
+				    SELECT MEMO
+                         , CNSL_SEQNO
+                         , rank() over(partition by CNSL_SEQNO  order by REG_DTM  desc) AS RNK
+				      FROM T_RMK_HIST
+				)
+				WHERE RNK = 1
+		      ) D
+		    ON CH.CNSL_SEQNO = D.CNSL_SEQNO
+             
+             WHERE CH.CNSL_MEDCLAS_CD='IB20'
+               AND CH.REG_DTM BETWEEN #{SRCH_STR_DT} || '000000' AND #{SRCH_END_DT} || '999999'
+               AND CH.CNSL_SEQNO IN (
+                    SELECT CNSL_SEQNO
+                      FROM T_CNSL_HIST_CVAP_DEPT
+                     WHERE CVAP_DEPT_CD = #{DEPT_CD}
+               )
+    </select>  
+    
+           <!-- Search Complaint Detail and print it.(민원 세부 조회 및 인쇄) -->
+    <select id="SELECT_CMLN_DETL_PRN" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT2020.SELECT_CMLN_DETL : Complaint Detail search (민원 세부 조회) */
+            SELECT CH.CUST_NM           AS CUST_NM,                /* Customer Name */
+                   CH.REALNM_NO         AS AGR_IDCMND,             /* Agree ID */
+                   DNM.CVAP_DEPT_NM     AS DEPT_NM,                	   /* Department Name */
+                   D.MEMO 				AS LAST_CUR_RMK ,			/* Last cur memo */
+                   CPH.RMK              AS CNTNT,                  /* Content */
+                   FN_SMLCD_NM('PRIO', CH.CVAP_RT_PRIO, #{GBL_LANG_CD}, '')     AS PRIO, /* Priority */
+                   (CASE WHEN CH.CVAP_ST_CD='2' THEN FN_SMLCD_NM('CVAP_PROC_ST', CH.CVAP_ST_CD, #{GBL_LANG_CD}, '') ELSE  
+                   (CASE WHEN CPH.CNSL_SEQNO IS NOT NULL THEN FN_SMLCD_NM('CVAP_PROC_ST', '1', #{GBL_LANG_CD}, '') ELSE FN_SMLCD_NM('CVAP_PROC_ST', '0', #{GBL_LANG_CD}, '') END
+                   ) END )              AS STAT,                   /* Status */
+                   CH.REG_DTM           AS CRTD,                   /* Created */
+                   CH.REG_NM            AS CRTD_BY                 /* Created by */
+             FROM T_CUR_HIST CH
+             
+             LEFT JOIN  (SELECT CNSL_SEQNO,
+                                CVAP_PROC_NO,
+                                RMK
+                          FROM (SELECT CNSL_SEQNO,
+                                       CVAP_PROC_NO,
+                                       RMK,
+                                       RANK() OVER(PARTITION BY CNSL_SEQNO
+                                         ORDER BY CVAP_PROC_NO DESC) RANK
+                                  FROM T_CVAP_PROC_HIST)
+                         WHERE RANK = 1) CPH
+             ON CH.CNSL_SEQNO = CPH.CNSL_SEQNO
+             INNER JOIN (
+                SELECT CNSL_SEQNO
+                     , LISTAGG(A.CVAP_DEPT_NM,',') WITHIN GROUP (ORDER BY A.CVAP_DEPT_CD) AS CVAP_DEPT_NM
+                  FROM T_CVAP_DEPT A
+                  JOIN T_CNSL_HIST_CVAP_DEPT B
+                    ON A.CVAP_DEPT_CD = B.CVAP_DEPT_CD
+                 GROUP BY B.CNSL_SEQNO
+             ) DNM
+             ON DNM.CNSL_SEQNO = CH.CNSL_SEQNO
+             LEFT JOIN (
+				SELECT * FROM
+				(
+				    SELECT MEMO
+                         , CNSL_SEQNO
+                         , rank() over(partition by CNSL_SEQNO  order by REG_DTM  desc) AS RNK
+				      FROM T_RMK_HIST
+				)
+				WHERE RNK = 1
+		      ) D
+		    ON CH.CNSL_SEQNO = D.CNSL_SEQNO
+             
+             WHERE CH.CNSL_MEDCLAS_CD='IB20'
+               AND CH.REG_DTM BETWEEN #{SRCH_STR_DT} || '000000' AND #{SRCH_END_DT} || '999999'
+               AND CH.CNSL_SEQNO IN (
+                    SELECT CNSL_SEQNO
+                      FROM T_CNSL_HIST_CVAP_DEPT
+                     WHERE 1 = 1
+                     <if test="CMB_DEPT_CD != null and CMB_DEPT_CD.size() > 0 ">
+                     AND CVAP_DEPT_CD IN (<foreach item="ITEM" collection="CMB_DEPT_CD" separator=",">#{ITEM}</foreach>)
+                     </if>
+               )
+    </select>
+    
+               <!-- Search Department.(부서 조회) -->
+    <select id="SELECT_DEPT" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        /* CRPT2020.SELECT_DEPT : Department search (부서 조회) */
+			SELECT CVAP_DEPT_CD AS CODE,
+			       CVAP_DEPT_NM AS TEXT
+			  FROM T_CVAP_DEPT
+			  WHERE USE_YN='Y'
+			  ORDER BY TO_NUMBER(CVAP_DEPT_CD)
+    </select>  
+</mapper>
+    

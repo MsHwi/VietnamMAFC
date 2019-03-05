@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT3011">
+	
+	<!-- Search Campaign (캠페인 조회) -->
+	<select id="SELECT_CMP" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+		/* CRPT3011.SELECT_CMP : Search Campaign (캠페인 조회) */
+		SELECT CMP_ID AS CODE /* Campaign ID(캠페인ID) */
+			 , CMP_NM AS TEXT /* Campaign Name(캠페인 명) */
+		  FROM T_CMP
+		 ORDER BY CMP_ID
+	</select>
+	
+	<!-- Search Consultation types Count-->
+	<select id="SELECT_CNSL_TYPE_CNT" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+		/* CRPT3011.SELECT_CNSL_TYPE_CNT : Search Consultation types Count */
+		SELECT 'Sign Total' AS MAIN_CATE
+			 , N'Total phone number assign' AS SUB_CATE
+			 , COUNT(B.CNSLR_ID) AS CNT
+			 , '100' || '%' AS PER
+		  FROM T_CMP A
+		 INNER JOIN T_CALL_LIST B
+			ON A.CMP_ID = B.CMP_ID
+		 WHERE B.CNSLR_ID IS NOT NULL
+		   AND A.CMP_TYP = 'TS'
+		<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+			AND B.CNTR_CD = #{CMB_CNTR_CD}
+		</if>
+		<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+			AND B.GRP_CD = #{CMB_GRP_CD}
+		</if>
+		<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+			AND B.TEAM_CD = #{CMB_TEAM_CD}
+		</if>
+		<if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+			AND B.CNSLR_ID = #{CMB_USR_ID}
+		</if>
+		<if test="SRCH_YM != null and SRCH_YM != ''">
+			AND B.ASGN_DT LIKE #{SRCH_YM} || '%'
+		</if>
+		<if test="CMB_CMP_ID != null and CMB_CMP_ID.size() > 0 ">
+			AND A.CMP_ID IN (<foreach item="ITEM" collection="CMB_CMP_ID" separator=",">#{ITEM}</foreach>)
+		</if>
+		
+		 UNION ALL
+		
+		 
+		SELECT 'Fresh Data' AS MAIN_CATE
+			 , N'Not Call' AS SUB_CATE
+			 , COUNT(B.CNSLR_ID) - COUNT(C.CMP_ID) AS CNT
+			 , TO_CHAR(NVL(ROUND(COUNT(C.CMP_ID) / DECODE(COUNT(B.CNSLR_ID), 0, NULL, COUNT(B.CNSLR_ID)), 2), 0), 'FM90.00') || '%' AS PER
+		  FROM T_CMP A
+		 INNER JOIN T_CALL_LIST B
+			ON A.CMP_ID = B.CMP_ID
+		  LEFT OUTER JOIN T_CALL_LIST_RSLT C
+			ON B.CMP_ID = C.CMP_ID
+		   AND B.CUST_NO = C.CUST_NO
+		   AND B.CALL_LIST_SEQNO = C.CALL_LIST_SEQNO
+		   AND B.CNSLR_ID = C.CNSLR_ID
+		 WHERE B.CNSLR_ID IS NOT NULL
+		   AND A.CMP_TYP = 'TS'
+		<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+			AND B.CNTR_CD = #{CMB_CNTR_CD}
+		</if>
+		<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+			AND B.GRP_CD = #{CMB_GRP_CD}
+		</if>
+		<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+			AND B.TEAM_CD = #{CMB_TEAM_CD}
+		</if>
+		<if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+			AND B.CNSLR_ID = #{CMB_USR_ID}
+		</if>
+		<if test="SRCH_YM != null and SRCH_YM != ''">
+			AND B.ASGN_DT LIKE #{SRCH_YM} || '%'
+		</if>
+		<if test="CMB_CMP_ID != null and CMB_CMP_ID.size() > 0 ">
+			AND A.CMP_ID IN (<foreach item="ITEM" collection="CMB_CMP_ID" separator=",">#{ITEM}</foreach>)
+		</if>
+		
+		 UNION ALL
+		
+		SELECT DECODE(CNSL_CD, NULL, 'TOTAL', FN_CNSL_CD_NM(HGRK_CNSL_CD, #{GBL_LANG_CD})) AS MAIN_CATE
+			 , CD_NM AS SUB_CATE
+			 , CNT
+			 , TO_CHAR(NVL(DECODE(A.CNT, 0 , NULL, A.CNT) /
+						   (
+							SELECT DECODE(COUNT(B.CNSLR_ID)-(COUNT(B.CNSLR_ID)-COUNT(C.CMP_ID)), 0, NULL, COUNT(B.CNSLR_ID)-(COUNT(B.CNSLR_ID)-COUNT(C.CMP_ID))) AS A1
+							  FROM T_CMP A
+							 INNER JOIN T_CALL_LIST B
+								ON A.CMP_ID = B.CMP_ID
+							  LEFT OUTER JOIN T_CALL_LIST_RSLT C
+								ON B.CMP_ID = C.CMP_ID
+							   AND B.CUST_NO = C.CUST_NO
+							   AND B.CALL_LIST_SEQNO = C.CALL_LIST_SEQNO
+							   AND B.CNSLR_ID = C.CNSLR_ID
+							 WHERE B.CNSLR_ID IS NOT NULL
+							   AND A.CMP_TYP = 'TS'
+							<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+								AND B.CNTR_CD = #{CMB_CNTR_CD}
+							</if>
+							<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+								AND B.GRP_CD = #{CMB_GRP_CD}
+							</if>
+							<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+								AND B.TEAM_CD = #{CMB_TEAM_CD}
+							</if>
+							<if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+								AND B.CNSLR_ID = #{CMB_USR_ID}
+							</if>
+							<if test="SRCH_YM != null and SRCH_YM != ''">
+								AND B.ASGN_DT LIKE #{SRCH_YM} || '%'
+							</if>
+							<if test="CMB_CMP_ID != null and CMB_CMP_ID.size() > 0 ">
+								AND A.CMP_ID IN (<foreach item="ITEM" collection="CMB_CMP_ID" separator=",">#{ITEM}</foreach>)
+							</if>
+						   ), 0), 'FM90.00') || '%' AS PER
+		  FROM (
+				SELECT HGRK_CNSL_CD
+					 , CNSL_CD
+					 , CD_NM AS CD_NM
+					 , CNT
+					 , DECODE(HGRK_CNSL_CD, 'TS20', DECODE(A.CNSL_CD, NULL, 2, 1), 'TS10', DECODE(A.CNSL_CD, NULL, 4, 3), 'TS30', DECODE(A.CNSL_CD, NULL, 6, 5)) AS CNSL_CD_ORD
+				  FROM (
+						SELECT A.HGRK_CNSL_CD
+							 , A.CNSL_CD
+							 , DECODE(A.CD_NM, NULL, FN_CNSL_CD_NM(A.CNSL_CD, #{GBL_LANG_CD}), A.CD_NM) AS CD_NM
+							 , A.CNT 
+						  FROM (
+								SELECT A.HGRK_CNSL_CD, A.CNSL_CD, A.CD_NM, NVL(SUM(B.CNT1),0) CNT
+								  FROM (
+										SELECT A.HGRK_CNSL_CD, A.CNSL_CD, A.CD_NM, B.CNSL_CD_ORD
+										  FROM T_CNSL_CD A
+										 INNER JOIN (
+													SELECT DECODE(A.CNSL_CD, 'TS20', 1, 'TS10', 2, 'TS30', 3) AS CNSL_CD_ORD
+														 , A.CNSL_CD
+														 , A.CD_NM
+													  FROM T_CNSL_CD A
+													 INNER JOIN T_CNSL_CD_POLYGLOT B
+														ON A.CNSL_CD = B.CNSL_CD 
+													 WHERE A.USE_YN = 'Y'
+													   AND B.LNGG_CD = #{GBL_LANG_CD}
+													   AND A.HGRK_CNSL_CD = 'TS'
+											) B
+											ON A.HGRK_CNSL_CD = B.CNSL_CD
+										 ORDER BY B.CNSL_CD_ORD, A.CNSL_CD
+									) A
+								  LEFT OUTER JOIN (
+													SELECT C.LST_CNSL_MEDCLAS_CD
+														 , C.LST_CNSL_SMLCLAS_CD 
+														 , COUNT(C.LST_CNSL_SMLCLAS_CD) AS CNT1
+													  FROM T_CMP A
+													 INNER JOIN T_CALL_LIST B
+														ON A.CMP_ID = B.CMP_ID
+													  LEFT OUTER JOIN T_CALL_LIST_RSLT C
+														ON B.CMP_ID = C.CMP_ID
+													   AND B.CUST_NO = C.CUST_NO
+													   AND B.CALL_LIST_SEQNO = C.CALL_LIST_SEQNO
+													   AND B.CNSLR_ID = C.CNSLR_ID
+													 WHERE B.CNSLR_ID IS NOT NULL
+													   AND A.CMP_TYP = 'TS'
+													   AND C.CMP_ID IS NOT NULL
+													<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+														AND B.CNTR_CD = #{CMB_CNTR_CD}
+													</if>
+													<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+														AND B.GRP_CD = #{CMB_GRP_CD}
+													</if>
+													<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+														AND B.TEAM_CD = #{CMB_TEAM_CD}
+													</if>
+													<if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+														AND B.CNSLR_ID = #{CMB_USR_ID}
+													</if>
+													<if test="SRCH_YM != null and SRCH_YM != ''">
+														AND B.ASGN_DT LIKE #{SRCH_YM} || '%'
+													</if>
+													<if test="CMB_CMP_ID != null and CMB_CMP_ID.size() > 0 ">
+														AND A.CMP_ID IN (<foreach item="ITEM" collection="CMB_CMP_ID" separator=",">#{ITEM}</foreach>)
+													</if>
+													 GROUP BY C.LST_CNSL_MEDCLAS_CD
+															, C.LST_CNSL_SMLCLAS_CD
+										) B
+									ON A.HGRK_CNSL_CD = B.LST_CNSL_MEDCLAS_CD
+								   AND A.CNSL_CD = B.LST_CNSL_SMLCLAS_CD
+								 GROUP BY ROLLUP(A.HGRK_CNSL_CD, A.CNSL_CD, A.CD_NM)
+							) A
+						 WHERE A.HGRK_CNSL_CD IS NOT NULL
+					) A 
+				 GROUP BY HGRK_CNSL_CD,CNSL_CD,CD_NM, CNT
+				 ORDER BY CNSL_CD_ORD, CNSL_CD
+			) A
+	</select>
+	
+</mapper>
+	

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT2014">
+
+	<!-- Search Daily Agent Performance.(월간 상담원 실적 조회) -->
+	<select id="SELECT_MMLY_AGEN_PFMC" resultType="java.util.HashMap"	parameterType="java.util.HashMap">
+	    /* CRPT2014.SELECT_MMLY_AGEN_PFMC : Daily Agent Performance search(월간 상담원 실적 조회) */
+		SELECT  A.USR_ID
+		      , '[' || A.USR_ID || '] ' || A.USR_NM      AS AGEN_NM
+		      , B.c_user_id
+		      , B.ib_totl_cnt AS CALL_ANS
+		      , B.ob_totl_cnt AS EXT_CALL
+		      , B.ib_totl_cnt + B.ob_totl_cnt AS CALL_TOT
+		      , ROUND(B.totl_tm / DECODE(B.ib_totl_cnt + B.ob_totl_cnt, 0, 1, B.ib_totl_cnt + B.ob_totl_cnt)) AS AVG_HNDL_TM
+		  FROM  (SELECT  USR_ID
+		               , USR_NM
+		               , CTI_LGIN_ID
+		           FROM  T_USR
+		          WHERE  1 = 1
+		            AND BIZ_DV = 'IB'
+					<if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+						AND CNTR_CD = #{CMB_CNTR_CD}
+					</if>
+					<if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+						AND GRP_CD = #{CMB_GRP_CD}
+					</if>
+					<if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+						AND TEAM_CD = #{CMB_TEAM_CD}
+					</if>
+		        ) A
+		        INNER JOIN (SELECT  "c_user_id"       AS c_user_id
+		                          , SUM(CASE WHEN "c_call_type" = 'T' or ("c_call_type" = 'I' and length("c_cust_num")>4) AND  "c_uei"  IS NOT NULL THEN 1 ELSE 0 END) AS ib_totl_cnt
+		                          , SUM(CASE WHEN "c_call_type" = 'O' and length("c_cust_num")>4 THEN 1 ELSE 0 END) AS ob_totl_cnt
+		                          , NVL(SUM(CASE WHEN "c_conn_time" IS NOT NULL THEN "c_talk_time" END), 0) AS totl_tm
+		                      FROM  "ct_call_history_trg"@tmotion
+		                     WHERE	"c_date" BETWEEN #{SRCH_STR_DT} AND #{SRCH_END_DT}
+		                       AND	"c_user_id" IS NOT NULL
+		                       AND	"c_line_kind" = '1'
+		                       AND  "c_conn_time" != ''
+		                       AND	"c_call_type" != 'Z'
+		                       
+		                     GROUP BY  "c_user_id") B
+		            ON  A.CTI_LGIN_ID = B.c_user_id
+	</select>
+</mapper>
+    

@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT3019">
+
+    <!-- SELECT_DATE : Search date(날짜조회 조회) -->
+    <select id="SELECT_DATE" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        /* CRPT3019.SELECT_DATE : Search date(날짜조회) */
+            SELECT TO_CHAR(ADD_MONTHS(TO_DATE(NVL(#{SRCH_YM} || '01', FN_LOC_DT(#{GBL_UTC_GAP})), 'YYYYMMDD'), -1),  'MON', 'NLS_DATE_LANGUAGE=ENGLISH') || '.' || SUBSTR(FN_LOC_DTM(#{GBL_UTC_GAP}),0,4) AS LAST_MONTH
+                 , TO_CHAR(ADD_MONTHS(TO_DATE(NVL(#{SRCH_YM} || '01', FN_LOC_DT(#{GBL_UTC_GAP})), 'YYYYMMDD'), -0),  'MON', 'NLS_DATE_LANGUAGE=ENGLISH') || '.' || SUBSTR(FN_LOC_DTM(#{GBL_UTC_GAP}),0,4) AS THIS_MONTH
+              FROM DUAL
+    </select>
+    
+    <!-- SELECT_TEAM_PERFORMANCE : Search team performance(팀별 퍼포먼스) -->
+    <select id="SELECT_TEAM_PERFORMANCE" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        /* CRPT3019.SELECT_TEAM_PERFORMANCE : Search team performance(팀별 퍼포먼스) */
+            SELECT FN_CNTR_CD_NM(PRE.CNTR_CD) AS CNTR_NM
+                 , FN_GRP_CD_NM(PRE.CNTR_CD, PRE.GRP_CD) AS GRP_NM
+                 , FN_TEAM_CD_NM(PRE.CNTR_CD, PRE.GRP_CD, PRE.TEAM_CD) AS TEAM_NM
+                 , PRE.USR_ID
+                 , FN_USR_NM(PRE.USR_ID) AS USR_NM
+                 , FN_SMLCD_NM('OFLV_CD', PRE.POSN_CD, #{GBL_LANG_CD}, '')  AS POSN_NM
+                 , PRE.ETCO_DT
+                 , PRE.WORK_DT
+                 , FN_SMLCD_NM('LVCO_YN', PRE.LVCO_YN, #{GBL_LANG_CD}, '') AS LVCO_YN_NM
+                 , NVL(PRE.APP,0) AS LAST_APP
+                 , NVL(PRE.DISBURSED,0) AS LAST_DISBURSED
+                 , NVL(PRE.AMTFIN,0) AS LAST_AMTFIN
+                 , ROUND(NVL(NVL(PRE.AMTFIN,0) / DECODE(PRE.DISBURSED, 0, NULL, PRE.DISBURSED) ,0)) AS LAST_AVG_AMTFIN
+                 , ROUND(NVL(PRE.DISBURSED / DECODE(PRE.APP, 0, NULL, PRE.APP), 0) * 100, 1) || '%' AS LAST_APP_RATIO
+                 , NVL(AFTER.APP,0) AS THIS_APP
+                 , NVL(AFTER.DISBURSED,0) AS THIS_DISBURSED
+                 , NVL(AFTER.AMTFIN,0) AS THIS_AMTFIN
+                 , ROUND(NVL(NVL(AFTER.AMTFIN,0) / DECODE(AFTER.DISBURSED, 0, NULL, AFTER.DISBURSED) ,0)) AS THIS_AVG_AMTFIN
+                 , ROUND(NVL(AFTER.DISBURSED / DECODE(AFTER.APP, 0, NULL, AFTER.APP), 0) * 100, 1) || '%' AS THIS_APP_RATIO
+              FROM (
+                    SELECT U.CNTR_CD
+                         , U.GRP_CD
+                         , U.TEAM_CD
+                         , U.USR_ID
+                         , U.POSN_CD
+                         , U.ETCO_DT
+                         , TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') -  DECODE(INSTR(U.ETCO_DT , '/',1), 0, TO_DATE(NVL(ETCO_DT, TO_CHAR(SYSDATE, 'YYYYMMDD')), 'YYYYMMDD') , TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD')) AS WORK_DT
+                         , U.LVCO_YN
+                         , COUNT(E.APP_ID_C) AS APP
+<!--                          , COUNT(E.APPROVED) AS APPROVED -->
+                         , COUNT(E.DISBURSED) AS DISBURSED
+                         , NVL(SUM(E.AMTFIN),0) AS AMTFIN
+                         , ROUND(NVL(NVL(SUM(E.AMTFIN),0) / DECODE(COUNT(E.DISBURSED), 0, NULL, COUNT(E.DISBURSED)) ,0)) AS AVG_AMTFIN
+                         , ROUND(NVL(COUNT(E.DISBURSED) / DECODE(COUNT(E.APP_ID_C), 0, NULL, COUNT(E.APP_ID_C)), 0) * 100, 1) || '%' AS APP_RATIO
+                      FROM T_USR U
+                      LEFT OUTER JOIN T_CALL_LIST A
+                        ON A.CNSLR_ID = U.USR_ID
+                       AND A.CNSLR_ID IS NOT NULL
+                       AND A.CMP_ID IN (SELECT CMP_ID FROM T_CMP WHERE CMP_TYP = 'TS')
+                       AND A.ASGN_DT <![CDATA[>=]]> TO_CHAR(ADD_MONTHS(TO_DATE(#{SRCH_YM} || '01', 'YYYYMMDDHH24MISS'), -1),'YYYYMMDD')
+                       AND A.ASGN_DT <![CDATA[<=]]> TO_CHAR(LAST_DAY(ADD_MONTHS(TO_DATE(#{SRCH_YM}|| '01', 'YYYYMMDDHH24MISS'), -1)), 'YYYYMMDD')
+                      LEFT OUTER JOIN T_LOAN_AGREE D
+                        ON A.CMP_ID = D.CMP_ID
+                       AND A.CUST_NO = D.CUST_NO
+                       AND A.CALL_LIST_SEQNO = D.CALL_LIST_SEQNO
+                      LEFT OUTER JOIN (
+                                 SELECT V.APP_ID_C
+<!--                                       , V.STATUS -->
+                                      , CASE WHEN V.STATUS in ('POS Stage') THEN 'APPROVED' END APPROVED
+                                      , CASE WHEN V.STATUS IN ('End') THEN 'DISBURSED' END DISBURSED
+                                      , V.AMTFIN
+                                      , V.CUST_NO
+                                   FROM (
+                                         SELECT NVL(AGREEMENTID,APP_ID_C) APP_ID_C
+                                              , V.LAA_LAST_ACTIVITY_ID AS STATUS
+                                              , W.AMTFIN
+                                              , R.CUST_NO
+                                           FROM T_INTF_LOS_APP_APPLICATIONS V
+                                           LEFT OUTER JOIN T_INTF_LEA_AGREEMENT_DTL W
+                                             ON (V.CUST_ID_N = W.LESSEEID)
+                                           LEFT OUTER JOIN T_INTF_AGENT_CODE CD
+                                             ON V.LAA_SOURCE_INSPECTORID_N = CD.INSPECTORID
+                                           LEFT OUTER JOIN T_CUST_MSTR R
+                                             ON V.CUST_ID_N = R.F1_CUST_NO
+                                          WHERE V.LAA_LAST_ACTIVITY_ID IS NOT NULL
+                                            AND NVL(STATUS,LAA_LAST_ACTIVITY_ID) NOT IN ('C', 'Quick Data Entry')
+                                            AND CD.INSPECTORNAME LIKE 'TE%'
+                                            AND V.CUST_ID_N IS NOT NULL
+                                    ) V
+                               ) E
+                        ON A.CUST_NO = E.CUST_NO
+                       AND D.AGREE_ID = E.APP_ID_C
+                     <!-- INNER JOIN T_USR U
+                        ON A.CNSLR_ID = U.USR_ID
+                     WHERE A.CNSLR_ID IS NOT NULL
+                       AND A.CMP_ID IN (SELECT CMP_ID FROM T_CMP WHERE CMP_TYP = 'TS')
+                       AND A.ASGN_DT <![CDATA[>=]]> TO_CHAR(ADD_MONTHS(TO_DATE(#{SRCH_YM} || '01', 'YYYYMMDDHH24MISS'), -1),'YYYYMMDD')
+                       AND A.ASGN_DT <![CDATA[<=]]> TO_CHAR(LAST_DAY(ADD_MONTHS(TO_DATE(#{SRCH_YM}|| '01', 'YYYYMMDDHH24MISS'), -1)), 'YYYYMMDD') -->
+                     <trim prefix="WHERE" prefixOverrides="AND |OR ">
+                       <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+                           AND U.CNTR_CD = #{CMB_CNTR_CD}
+                       </if>
+                       <if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+                           AND U.GRP_CD = #{CMB_GRP_CD}
+                       </if>
+                       <if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+                           AND U.TEAM_CD = #{CMB_TEAM_CD}
+                       </if>
+                       <if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+                           AND U.USR_ID = #{CMB_USR_ID}
+                       </if>
+                     </trim>
+                     GROUP BY U.CNTR_CD
+                            , U.GRP_CD
+                            , U.TEAM_CD
+                            , U.USR_ID
+                            , U.ETCO_DT
+                            , U.POSN_CD
+                            , U.LVCO_YN
+              ) PRE
+              LEFT OUTER JOIN (
+                               SELECT U.CNTR_CD
+                                    , U.GRP_CD
+                                    , U.TEAM_CD
+                                    , U.USR_ID
+                                    , U.POSN_CD
+                                    , U.ETCO_DT
+                                    , TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') -  DECODE(INSTR(U.ETCO_DT , '/',1), 0, TO_DATE(NVL(ETCO_DT, TO_CHAR(SYSDATE, 'YYYYMMDD')), 'YYYYMMDD') , TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD')) AS WORK_DT
+                                    , U.LVCO_YN
+                                    , COUNT(E.APP_ID_C) AS APP
+<!--                                     , COUNT(E.APPROVED) AS APPROVED -->
+                                    , COUNT(E.DISBURSED) AS DISBURSED
+                                    , NVL(SUM(E.AMTFIN),0) AS AMTFIN
+                                    , ROUND(NVL(NVL(SUM(E.AMTFIN),0) / DECODE(COUNT(E.DISBURSED), 0, NULL, COUNT(E.DISBURSED)) ,0)) AS AVG_AMTFIN
+                                    , ROUND(NVL(COUNT(E.DISBURSED) / DECODE(COUNT(E.APP_ID_C), 0, NULL, COUNT(E.APP_ID_C)), 0) * 100, 1) || '%' AS APP_RATIO
+                                 FROM T_USR U
+                                 LEFT OUTER JOIN T_CALL_LIST A
+                                   ON A.CNSLR_ID = U.USR_ID
+                                  AND A.CNSLR_ID IS NOT NULL
+                                  AND A.CMP_ID IN (SELECT CMP_ID FROM T_CMP WHERE CMP_TYP = 'TS')
+                                  AND A.ASGN_DT <![CDATA[>=]]> TO_CHAR(TO_DATE(#{SRCH_YM} || '01', 'YYYYMMDDHH24MISS'), 'YYYYMMDD')
+                                  AND A.ASGN_DT <![CDATA[<=]]> TO_CHAR(LAST_DAY(TO_DATE(#{SRCH_YM} || '01', 'YYYYMMDDHH24MISS')), 'YYYYMMDD')
+                                 LEFT OUTER JOIN T_LOAN_AGREE D
+                                   ON A.CMP_ID = D.CMP_ID
+                                  AND A.CUST_NO = D.CUST_NO
+                                  AND A.CALL_LIST_SEQNO = D.CALL_LIST_SEQNO
+                                 LEFT OUTER JOIN (
+                                            SELECT V.APP_ID_C
+<!--                                                  , V.STATUS -->
+                                                 , CASE WHEN V.STATUS in ('POS Stage') THEN 'APPROVED' END APPROVED
+                                                 , CASE WHEN V.STATUS IN ('End') THEN 'DISBURSED' END DISBURSED
+                                                 , V.AMTFIN
+                                                 , V.CUST_NO
+                                              FROM (
+                                                    SELECT NVL(AGREEMENTID,APP_ID_C) APP_ID_C
+                                                         , V.LAA_LAST_ACTIVITY_ID AS STATUS
+                                                         , W.AMTFIN
+                                                         , R.CUST_NO
+                                                      FROM T_INTF_LOS_APP_APPLICATIONS V
+                                                      LEFT OUTER JOIN T_INTF_LEA_AGREEMENT_DTL W
+                                                        ON (V.CUST_ID_N = W.LESSEEID)
+                                                      LEFT OUTER JOIN T_INTF_AGENT_CODE CD
+                                                        ON V.LAA_SOURCE_INSPECTORID_N = CD.INSPECTORID
+                                                      LEFT OUTER JOIN T_CUST_MSTR R
+                                                        ON V.CUST_ID_N = R.F1_CUST_NO
+                                                     WHERE V.LAA_LAST_ACTIVITY_ID IS NOT NULL
+                                                       AND NVL(STATUS,LAA_LAST_ACTIVITY_ID) NOT IN ('C', 'Quick Data Entry')
+                                                       AND CD.INSPECTORNAME LIKE 'TE%'
+                                                       AND V.CUST_ID_N IS NOT NULL
+                                                ) V
+                                          ) E
+                                   ON A.CUST_NO = E.CUST_NO
+                                  AND D.AGREE_ID = E.APP_ID_C
+                                <!-- INNER JOIN T_USR U
+                                   ON A.CNSLR_ID = U.USR_ID
+                                WHERE A.CNSLR_ID IS NOT NULL
+                                  AND A.CMP_ID IN (SELECT CMP_ID FROM T_CMP WHERE CMP_TYP = 'TS')
+                                  AND A.ASGN_DT <![CDATA[>=]]> TO_CHAR(TO_DATE(#{SRCH_YM} || '01', 'YYYYMMDDHH24MISS'), 'YYYYMMDD')
+                                  AND A.ASGN_DT <![CDATA[<=]]> TO_CHAR(LAST_DAY(TO_DATE(#{SRCH_YM} || '01', 'YYYYMMDDHH24MISS')), 'YYYYMMDD') -->
+                                <trim prefix="WHERE" prefixOverrides="AND |OR ">
+                                  <if test="CMB_CNTR_CD != null and CMB_CNTR_CD != ''">
+                                      AND U.CNTR_CD = #{CMB_CNTR_CD}
+                                  </if>
+                                  <if test="CMB_GRP_CD != null and CMB_GRP_CD != ''">
+                                      AND U.GRP_CD = #{CMB_GRP_CD}
+                                  </if>
+                                  <if test="CMB_TEAM_CD != null and CMB_TEAM_CD != ''">
+                                      AND U.TEAM_CD = #{CMB_TEAM_CD}
+                                  </if>
+                                  <if test="CMB_USR_ID != null and CMB_USR_ID != ''">
+                                      AND U.USR_ID = #{CMB_USR_ID}
+                                  </if>
+                                </trim>
+                                GROUP BY U.CNTR_CD
+                                       , U.GRP_CD
+                                       , U.TEAM_CD
+                                       , U.USR_ID
+                                       , U.ETCO_DT
+                                       , U.POSN_CD
+                                       , U.LVCO_YN
+             ) AFTER
+                <!-- ON PRE.CNTR_CD = AFTER.CNTR_CD
+               AND PRE.GRP_CD = AFTER.GRP_CD
+               AND PRE.TEAM_CD = AFTER.TEAM_CD -->
+                ON PRE.USR_ID = AFTER.USR_ID
+             ORDER BY PRE.CNTR_CD
+                    , PRE.GRP_CD
+                    , PRE.TEAM_CD
+                    , PRE.POSN_CD
+                    , PRE.LVCO_YN
+    </select>
+	
+</mapper>
+    

@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?><!--Converted at: Sat Apr 02 22:02:53 KST 2016-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CKNW1035">
+
+	<!-- Search Knowledge MAP(지식 조회 MAP)-->
+	<resultMap type="java.util.HashMap" id="MAP_SELECT_KNW_LST">
+		<result column="KNW_INF_SEQNO"		property="KNW_INF_SEQNO"	/>
+		<result column="KNW_LRGCLAS_CD"		property="KNW_LRGCLAS_CD"	/>
+        <result column="KNW_MIDCLAS_CD"		property="KNW_MIDCLAS_CD"	/>
+        <result column="KNW_SMLCLAS_CD"		property="KNW_SMLCLAS_CD"	/>
+        <result column="KNW_LRGCLAS_CD_NM"	property="KNW_LRGCLAS_CD_NM"/>
+        <result column="KNW_MIDCLAS_CD_NM"	property="KNW_MIDCLAS_CD_NM"/>
+        <result column="KNW_SMLCLAS_CD_NM"	property="KNW_SMLCLAS_CD_NM"/>
+        <result column="TITE"				property="TITE"				/>
+        <result column="LVL_CD"				property="LVL_CD"			/>
+        <result column="LVL_CD_NM"			property="LVL_CD_NM"		/>
+        <result column="KNW_SMRY"			property="KNW_SMRY"			/>
+        <result column="RMK"				property="RMK"				/>
+        <result column="READ_TCNT"			property="READ_TCNT"		/>
+        <result column="REG_ID"				property="REG_ID"			/>
+        <result column="REGR_NM"			property="REGR_NM"			/>
+        <result column="REG_DTM"			property="REG_DTM"			/>
+		<!--  CLOB Result Column -->
+		<result column="KNW_CONT"			property="KNW_CONT" 	jdbcType="CLOB" javaType="java.lang.String"/>
+	</resultMap>
+    
+	<!-- Search Knowledge(지식 조회) -->
+	<select id="SELECT_KNW_ONE" parameterType="java.util.HashMap" resultMap="MAP_SELECT_KNW_LST">
+		/* CKNW1035.SELECT_KNW_ONE : Search Knowledge(지식 조회) */
+		SELECT K.KNW_INF_SEQNO
+			 , K.KNW_LRGCLAS_CD
+			 , K.KNW_MIDCLAS_CD
+			 , K.KNW_SMLCLAS_CD
+			 , FN_KNW_TYP_CD_NM(K.KNW_LRGCLAS_CD, #{GBL_LANG_CD}) KNW_LRGCLAS_CD_NM
+			 , FN_KNW_TYP_CD_NM(K.KNW_MIDCLAS_CD, #{GBL_LANG_CD}) KNW_MIDCLAS_CD_NM
+			 , FN_KNW_TYP_CD_NM(K.KNW_SMLCLAS_CD, #{GBL_LANG_CD}) KNW_SMLCLAS_CD_NM
+			 , K.TITE
+			 , K.LVL_CD
+			 , FN_SMLCD_NM('IMPT_DO', K.LVL_CD, #{GBL_LANG_CD}, '') LVL_CD_NM
+			 , K.KNW_SMRY
+			 , K.KNW_CONT
+			 , K.RMK
+			 , (SELECT COUNT(PUSL_TCNT) 
+			 	  FROM T_KNW_READ 
+			 	 WHERE KNW_INF_SEQNO = #{KNW_INF_SEQNO}) PUSL_TCNT
+			 , (SELECT NVL(COUNT(FILE_SEQ), 0) 
+			 	  FROM T_KNW_APND_FILE
+			 	 WHERE KNW_INF_SEQNO = K.KNW_INF_SEQNO) FILE_TCNT
+			 , NVL(R.LKE_TCNT, 0) LKE_TCNT
+			 , NVL((SELECT MAX(LKE_YN)
+					  FROM T_KNW_READ 
+					 WHERE KNW_INF_SEQNO = K.KNW_INF_SEQNO
+					   AND PUSL_MN_ID = #{GBL_USR_ID}), 'N') LKE_YN
+			 , K.REG_ID
+			 , K.REGR_NM
+			 , K.REG_DTM
+		  FROM T_KNW K
+		  LEFT JOIN 
+		  (SELECT KNW_INF_SEQNO
+				, NVL(SUM(PUSL_TCNT ), 0) READ_TCNT
+				, NVL(SUM(DECODE(LKE_YN, 'Y', 1, 0)), 0) LKE_TCNT
+			FROM T_KNW_READ
+			GROUP BY KNW_INF_SEQNO) R
+			ON K.KNW_INF_SEQNO = R.KNW_INF_SEQNO
+		 WHERE K.KNW_INF_SEQNO = #{KNW_INF_SEQNO}
+		 
+	</select>
+    
+	<!-- Save Read Knowledge Information(지식관리 열람정보 저장) -->
+	<insert id="MERGE_KNW_READ" parameterType="java.util.HashMap">
+		/* CKNW1035.MERGE_KNW_READ : Save Read Knowledge Information(지식관리 열람정보 저장) */
+		MERGE INTO T_KNW_READ
+		USING DUAL
+		   ON (KNW_INF_SEQNO = #{KNW_INF_SEQNO}
+		  AND  PUSL_MN_ID = #{GBL_USR_ID})
+		 WHEN MATCHED THEN
+			UPDATE SET
+				   PUSL_TCNT  = PUSL_TCNT  + 1 
+				 , LST_UPD_ID = #{GBL_USR_ID}
+				 , LST_UPD_DTM = FN_LOC_DTM(#{GBL_UTC_GAP})
+		WHEN NOT MATCHED THEN
+			INSERT 
+			(
+				KNW_INF_SEQNO
+			  , PUSL_MN_ID
+			  , PUSL_TCNT 
+			  , REG_DTM
+			  , SYS_DTM
+			)
+			VALUES
+			(
+				#{KNW_INF_SEQNO}
+			  , #{GBL_USR_ID}
+			  , 1
+			  , FN_LOC_DTM(#{GBL_UTC_GAP})
+			  , FN_UTC_DTM()
+			)    
+	</insert>
+	
+	<!-- Search Attachment(첨부파일 조회) -->
+	<select id="SELECT_LOAD_FILE" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		/* CKNW1035.SELECT_LOAD_FILE : Search Attachment(첨부파일 조회) */
+		SELECT KNW_INF_SEQNO		/* Seq. No(지식정보 이력번호) */
+			 , FILE_NM				/* File Name(파일명) */
+			 , FILE_PHYS_NM			/* File Physical name(파일 물리명) */
+			 , FILE_SZ				/* File Size(파일 크기) */
+		  FROM T_KNW_APND_FILE
+		WHERE KNW_INF_SEQNO = #{KNW_INF_SEQNO}
+		ORDER BY FILE_SEQ
+	</select>
+	
+	<!-- Update Like Knowledge(지식관리 좋아요 저장) -->
+	<update id="UPDATE_KNW_LIKE" parameterType="java.util.HashMap">
+		/* CKNW1035."UPDATE_KNW_LIKE" : Update Like Knowledge(지식관리 좋아요 저장) */
+		UPDATE T_KNW_READ
+		   SET LKE_YN = #{LKE_YN}
+			 , LST_UPD_ID = #{GBL_USR_ID}
+			 , LST_UPD_DTM = FN_LOC_DTM(#{GBL_UTC_GAP})
+		 WHERE KNW_INF_SEQNO = #{KNW_INF_SEQNO}
+		   AND PUSL_MN_ID = #{GBL_USR_ID}
+	</update>
+	
+	<!-- Select Like Knowledge After(지식관리 좋아요 처리 후 조회) -->
+	<select id="SELECT_KNW_LKE_AFTER" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		/* CKNW1035."SELECT_KNW_LKE_AFTER" : Select Like Knowledge After(지식관리 좋아요 처리 후 조회) */
+		SELECT (SELECT NVL(COUNT(PUSL_TCNT ), 0) 
+			 	  FROM T_KNW_READ 
+			 	 WHERE KNW_INF_SEQNO = #{KNW_INF_SEQNO}) PUSL_TCNT
+			 , (SELECT NVL(COUNT(FILE_SEQ), 0) 
+			 	  FROM T_KNW_APND_FILE 
+			 	 WHERE KNW_INF_SEQNO = K.KNW_INF_SEQNO) FILE_TCNT
+			 , NVL(R.LKE_TCNT, 0) LKE_TCNT
+			 , NVL((SELECT MAX(LKE_YN)
+					  FROM T_KNW_READ 
+					 WHERE KNW_INF_SEQNO = K.KNW_INF_SEQNO
+					   AND PUSL_MN_ID = #{GBL_USR_ID}), 'N') LKE_YN
+		  FROM T_KNW K
+		  LEFT JOIN 
+		  (SELECT KNW_INF_SEQNO
+				, NVL(SUM(DECODE(LKE_YN, 'Y', 1, 0)), 0) LKE_TCNT
+			FROM T_KNW_READ
+			GROUP BY KNW_INF_SEQNO) R
+			ON K.KNW_INF_SEQNO = R.KNW_INF_SEQNO
+		 WHERE K.KNW_INF_SEQNO = #{KNW_INF_SEQNO}
+	</select>
+	
+	<!-- Search Knowledge Comments(댓글 조회) -->
+	<select id="SELECT_KNW_CMMT" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		/* CKNW1035.SELECT_KNW_CMMT : Search Knowledge Comments(댓글 조회) */
+		SELECT KNW_INF_SEQNO			/* Seq. No(지식정보 이력번호) */
+			 , REPLY_MN_ID				/* Comments User ID(댓글자 아이디) */
+			 , REPLY_SEQ				/* Comments Seq(댓글 순번) */
+			 , REPLY AS CMMT			/* Comments(댓글) */
+			 , REGR_NM					/* Register name(등록자 명) */
+			 , LST_UPD_DTM				/* Registration Date(등록 일시) */
+			 , DECODE(REPLY_MN_ID, #{GBL_USR_ID}, 'Y', 'N') DEL_ABL_YN /* Delete able Y/N(삭제 가능여부) */
+		  FROM T_KNW_CMMT
+		WHERE KNW_INF_SEQNO = #{KNW_INF_SEQNO}
+		ORDER BY REG_DTM DESC
+	</select>
+
+	<!-- Insert Knowledge Comments(지식 댓글 저장) -->
+	<insert id="INSERT_KNW_CMMT" parameterType="java.util.HashMap">
+		/* CKNW1035.INSERT_KNW_CMMT : Insert Knowledge Comments(지식 댓글 저장) */
+		INSERT INTO T_KNW_CMMT
+		(
+			KNW_INF_SEQNO
+		  , REPLY_MN_ID
+		  , REPLY_SEQ
+		  , REPLY
+		  , REG_DTM
+		  , REGR_NM
+		  , LST_UPD_ID
+		  , LST_UPD_DTM
+		  , SYS_DTM
+		)
+		VALUES
+		(
+			#{KNW_INF_SEQNO}
+		  , #{GBL_USR_ID}
+		  , SEQ_T_KNW_CMMT.NEXTVAL
+		  , #{CMMT}
+		  , FN_LOC_DTM(#{GBL_UTC_GAP})
+		  , #{GBL_USR_NM}
+		  , #{GBL_USR_ID}
+		  , FN_LOC_DTM(#{GBL_UTC_GAP})
+		  , FN_UTC_DTM()
+		)    
+	</insert>
+	
+	<!-- Delete Knowledge Comments(지식 댓글 삭제) -->
+	<delete id="DELETE_KNW_CMMT" parameterType="java.util.HashMap">
+		/* CKNW1035.DELETE_KNW_CMMT : Delete Knowledge Comments(지식 댓글 삭제) */
+		DELETE 
+		  FROM T_KNW_CMMT
+		 WHERE KNW_INF_SEQNO = #{KNW_INF_SEQNO}
+		   AND REPLY_MN_ID = #{GBL_USR_ID}
+		   AND REPLY_SEQ = #{REPLY_SEQ}    
+	</delete>
+	
+</mapper>

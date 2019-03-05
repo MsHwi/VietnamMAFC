@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CRPT3018">
+
+    <!-- SELECT_APPROV_DISB : Search Approved Disbursed -->
+    <select id="SELECT_APPROV_DISB" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        /* CRPT3018.SELECT_APPROV_DISB : Search Approved Disbursed */
+        SELECT A.APP_ID_C AS AGREEMENTID
+             , B.PRODUCTFLAG
+             , TO_CHAR(B.DISBURSALDATE, 'YYYYMMDD') AS DISBURSALDATE
+             , NVL(F.CUST_NM, C.CUSTOMERNAME) AS CUST_NAME
+             , NVL(F.REALNM_NO, C.CIF_NO) AS CIF_NO 
+             , B.AGREEMENTNO AS CONTRACT_NO
+             , (SELECT NBFC.DESCRIPTION FROM MAMAS.NBFC_PRODUCT_M@FINNONE NBFC WHERE NBFC.CODE = B.PRODUCTFLAG) AS PRODUCT_NAME
+             , B.AMTFIN AS DISBURSAL_AMOUNT
+             , B.TENURE
+             , B.EFFRATE
+             , B.INTRATE AS FLAT_RATE
+<!--              , '' AS SCORING -->
+             , B.DUEDAY
+             , B.EMI
+             , B.FINANCECHARGE AS TOT_INTEREST
+             , ROUND(FINANCECHARGE * 12 / B.TENURE) AS TOT_INTEREST_YEAR
+             , B.MATURITYAMT AS TOT_BALANCE
+             , A.VC_ACCTOUNT_OFF_CD AS CRDT_OFCR_CODE
+             , A.CREATED_BY AS FINN_USER
+             , C.OTHER_EMPLOYER_NAME_C AS COMPANY_NAME
+             , C.VC_ALIAS_NAME AS SOURCE
+             , (SELECT H.DC_CD 
+                  FROM (
+                        SELECT G.DC_CD
+                          FROM T_INTF_TS_DC G 
+                         WHERE F.CUST_NO = G.CUST_NO
+                         ORDER BY G.LST_CALL_DTM DESC
+                       ) H
+                 WHERE ROWNUM = 1
+               ) AS DC_CODE
+             , (SELECT CMP.CMP_NM FROM T_CMP CMP WHERE CMP.CMP_ID = E.CMP_ID) AS NEW_SOURCE
+             , A.LAA_BRANCHID AS BRANCH
+<!--              , (SELECT E.DESCRIPTION FROM MAMAS.CR_GENE_PARA@FINNONE E WHERE  E.VALUE=A.LAA_FIELD_10 AND ROWNUM =1) -->
+             , (SELECT H.ET_USR_ID FROM T_USR H WHERE H.USR_ID = E.REG_ID) AS SALE_CODE
+          FROM T_INTF_LOS_APP_APPLICATIONS A
+          LEFT OUTER JOIN T_INTF_LEA_AGREEMENT_DTL B
+            ON A.CUST_ID_N = B.LESSEEID
+          LEFT OUTER JOIN T_INTF_NBFC_CUSTOMER_M C
+            ON C.APP_ID_C = B.AGREEMENTID
+          LEFT OUTER JOIN UND_record@TELESALES D
+            ON B.AGREEMENTID = D.APP_NO
+          LEFT OUTER JOIN T_LOAN_AGREE E
+            ON A.APP_ID_C = E.AGREE_ID
+          LEFT OUTER JOIN T_CUST_MSTR F
+            ON E.CUST_NO = F.CUST_NO
+         WHERE E.AGREE_ID IS NOT NULL
+           AND TO_CHAR(D.PEND_DATE, 'YYYYMMDD') <![CDATA[ >= ]]> #{SRCH_STR_DT}
+           AND TO_CHAR(D.PEND_DATE, 'YYYYMMDD') <![CDATA[ <= ]]> #{SRCH_END_DT}
+         <if test="CUST_NM != null and CUST_NM != ''">
+             AND F.CUST_NM = #{CUST_NM}
+         </if>
+         <if test="REALNM_NO != null and REALNM_NO != ''">
+             AND F.REALNM_NO = #{REALNM_NO}
+         </if>
+         <!-- LEFT OUTER JOIN MAMAS.CR_GENE_PARA@FINNONE D
+              ON A.LAA_BRANCHID = D.BRANCHID --> 
+    </select>
+	
+</mapper>
+    
