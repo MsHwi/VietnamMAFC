@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fontFamilies>
+    <fontFamily name="CB Font">
+        <normal>reports/fonts/Malgun.ttf</normal>
+        <pdfEncoding>Identity-H</pdfEncoding>
+        <pdfEmbedded>true</pdfEmbedded>
+        <locales>
+            <locale>ko_KR</locale>
+        </locales>
+    </fontFamily>
+    
+    <fontFamily name="CB Font">
+        <!-- <normal>reports/fonts/Verdana.ttf</normal>
+        <pdfEncoding>Identity-H</pdfEncoding>
+        <pdfEmbedded>true</pdfEmbedded> -->
+        <normal>reports/fonts/times.ttf</normal>
+        <bold>reports/fonts/timesbd.ttf</bold>
+        <italic>reports/fonts/timesi.ttf</italic>
+        <boldItalic>reports/fonts/timesbi.ttf</boldItalic>
+        <pdfEncoding>Identity-H</pdfEncoding>
+        <pdfEmbedded>true</pdfEmbedded>
+    </fontFamily>
+    
+    <fontFamily name="Arial Viet">
+            <normal>reports/fonts/Malgun.ttf</normal>
+        <pdfEncoding>Identity-H</pdfEncoding>
+        <pdfEmbedded>true</pdfEmbedded>
+        <locales>
+            <locale>ko_KR</locale>
+        </locales>
+    </fontFamily>  
+    <fontFamily name="Arial Viet"> 
+        <normal>reports/fonts/arial.ttf</normal>
+        <bold>reports/fonts/arialbd.ttf</bold>
+        <italic>reports/fonts/ariali.ttf</italic>
+        <boldItalic>reports/fonts/arialbi.ttf</boldItalic>
+        <pdfEncoding>Identity-H</pdfEncoding>
+        <pdfEmbedded>true</pdfEmbedded>
+    </fontFamily>
+    
+    <fontFamily name="Times Roman Viet">
+        <normal>reports/fonts/times.ttf</normal>
+        <bold>reports/fonts/timesbd.ttf</bold>
+        <italic>reports/fonts/timesi.ttf</italic>
+        <boldItalic>reports/fonts/timesbi.ttf</boldItalic>
+        <pdfEncoding>Identity-H</pdfEncoding>
+        <pdfEmbedded>true</pdfEmbedded>
+    </fontFamily>
+
+	<!--
+		Mapping Java logical fonts, for the sake of HTML export only.
+	-->
+	
+	<fontFamily name="SansSerif">
+		<exportFonts>
+			<export key="net.sf.jasperreports.html">'DejaVu Sans', Arial, Helvetica, sans-serif</export>
+			<export key="net.sf.jasperreports.xhtml">'DejaVu Sans', Arial, Helvetica, sans-serif</export>
+		</exportFonts>
+	</fontFamily>
+	<fontFamily name="Serif">
+		<exportFonts>
+			<export key="net.sf.jasperreports.html">'DejaVu Serif', 'Times New Roman', Times, serif</export>
+			<export key="net.sf.jasperreports.xhtml">'DejaVu Serif', 'Times New Roman', Times, serif</export>
+		</exportFonts>
+	</fontFamily>
+	<fontFamily name="Monospaced">
+		<exportFonts>
+			<export key="net.sf.jasperreports.html">'DejaVu Sans Mono', 'Courier New', Courier, monospace</export>
+			<export key="net.sf.jasperreports.xhtml">'DejaVu Sans Mono', 'Courier New', Courier, monospace</export>
+		</exportFonts>
+	</fontFamily>
+
+</fontFamilies>

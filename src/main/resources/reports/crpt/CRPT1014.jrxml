@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.5.1.final using JasperReports Library version 6.5.1  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Report" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="6deab63a-2dae-4b49-b42b-be896ac69dc4">
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="New Data Adapter "/>
+	<template><![CDATA["reports/styles/main.jrtx"]]></template>
+	<parameter name="date" class="java.lang.String"/>
+	<parameter name="campaign" class="java.lang.String"/>
+	<parameter name="team" class="java.lang.String"/>
+	<parameter name="title" class="java.lang.String"/>
+	<parameter name="strDate" class="java.lang.String"/>
+	<parameter name="endDate" class="java.lang.String"/>
+	<parameter name="detail" class="java.lang.String"/>
+	<queryString language="SQL">
+		<![CDATA[SELECT A.*
+			 , '' AS FIN_STATUS /* Finn Status(FINN 상태)*/
+		  FROM (
+				SELECT CALL.CNTR_CD																		/* Center Code(센터코드) */
+					 , FN_CNTR_CD_NM(CALL.CNTR_CD) AS CNTR_NM											/* Center Name(센터명) */
+					 , CALL.GRP_CD																		/* Group Code(그룹코드) */
+					 , FN_GRP_CD_NM(CALL.CNTR_CD, CALL.GRP_CD) AS GRP_NM								/* Group Code(그룹명) */
+					 , CALL.TEAM_CD																		/* Team Code(팀코드) */
+					 , FN_TEAM_CD_NM(CALL.CNTR_CD, CALL.GRP_CD, CALL.TEAM_CD) AS TEAM_NM				/* Team Code(팀명) */
+					 , CALL.CNSLR_ID																	/* Agent ID(상담원 ID) */
+					 , FN_USR_NM(CALL.CNSLR_ID) AS CNSLR_NM												/* Agent Name(상담원 명) */
+					 , FN_CUST_NM(CALL.CUST_NO) AS CUST_NM												/* Customer Name(고객명) */
+					 , CALL.ASGN_DT																		/* Assign Date(배정일자) */
+					 , CALL.CMP_ID																		/* Campaign ID(캠페인 ID) */
+					 , FN_GET_CMP_NM(CALL.CMP_ID) AS CMP_NM												/* Campaign Name(캠페인명) */
+					 , FN_CNSL_CD_NM(RSLT.LST_CNSL_MEDCLAS_CD, 'en-US') AS CNSL_MEDCLAS_NM		/* Center Code(센터코드) */
+					 , RSLT.LST_CNSL_SMLCLAS_CD															/* Finn Status(FINN 상태)*/
+					 , DECODE(RSLT.LST_CNSL_SMLCLAS_CD, 'TU2001', RSLT.AGREE_NO, '1') AS AGREE_ID		/* Agree ID */
+				  FROM T_CALL_LIST CALL
+				 INNER JOIN T_CALL_LIST_RSLT RSLT
+					ON CALL.CMP_ID = RSLT.CMP_ID
+				   AND CALL.CUST_NO = RSLT.CUST_NO
+				   AND CALL.CALL_LIST_SEQNO = RSLT.CALL_LIST_SEQNO
+				
+				
+			  ) A]]>
+	</queryString>
+	<field name="CNTR_CD" class="java.lang.String"/>
+	<field name="CNTR_NM" class="java.lang.String"/>
+	<field name="GRP_CD" class="java.lang.String"/>
+	<field name="GRP_NM" class="java.lang.String"/>
+	<field name="TEAM_CD" class="java.lang.String"/>
+	<field name="TEAM_NM" class="java.lang.String"/>
+	<field name="CNSLR_ID" class="java.lang.String"/>
+	<field name="CNSLR_NM" class="java.lang.String"/>
+	<field name="CUST_NM" class="java.lang.String"/>
+	<field name="ASGN_DT" class="java.lang.String"/>
+	<field name="CMP_ID" class="java.lang.String"/>
+	<field name="CMP_NM" class="java.lang.String"/>
+	<field name="CNSL_MEDCLAS_NM" class="java.lang.String"/>
+	<field name="LST_CNSL_SMLCLAS_CD" class="java.lang.String"/>
+	<field name="AGREE_ID" class="java.math.BigDecimal"/>
+	<field name="LOAN_STATUS" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="120" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<image>
+				<reportElement stretchType="ContainerBottom" x="2" y="1" width="252" height="59" uuid="4ec75f3d-5e26-4d37-bf92-ade6308cb790"/>
+				<imageExpression><![CDATA["reports/images/MIRAE_logo.png"]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="500" y="35" width="300" height="20" uuid="92336ab4-3c5b-4dfe-9e69-64ef09e4bce2"/>
+				<textElement textAlignment="Right" verticalAlignment="Bottom">
+					<font fontName="Arial" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[91 Pasteur Street, Ben Nghe Ward, District 1 HCMC, Vietnam]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="55" width="300" height="21" uuid="118ff28e-d6d3-4d59-a516-d0a8cf7be979"/>
+				<textElement textAlignment="Right">
+					<font isBold="false"/>
+				</textElement>
+				<text><![CDATA[T. (028) 7300-7777, F. (028)6299-0894, W. mafc.com.vn]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="1" width="301" height="31" uuid="7eb56307-79ae-47e9-b17c-ee43955db23a"/>
+				<textElement textAlignment="Right">
+					<font size="16" isBold="true"/>
+				</textElement>
+				<text><![CDATA[MIRAE ASSET Finance Company]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="18" width="300" height="30" forecolor="#706E6E" uuid="412fadba-5724-4076-b9e5-de4584c8903c"/>
+				<textElement textAlignment="Right">
+					<font fontName="Arial Viet" size="14"/>
+				</textElement>
+				<text><![CDATA[Đi một ngày đàng, học một sàng khôn]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true">
+				<reportElement style="TitleRight" x="480" y="95" width="320" height="20" uuid="e4f7c020-38a1-44b5-ad36-a6166ae768cb"/>
+				<textFieldExpression><![CDATA["Print Date : " + new java.util.Date() + "\n" + $P{detail}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="TitleFont" stretchType="ContainerBottom" x="2" y="80" width="460" height="38" uuid="8fe44ce2-7dc9-47e8-8e67-dab08f577aa5"/>
+				<textFieldExpression><![CDATA[$P{title}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="25" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<rectangle>
+				<reportElement style="ColumnHeader" x="0" y="0" width="799" height="25" uuid="7935e3ac-a522-438f-be99-aa7b3b5a1366">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+				</reportElement>
+			</rectangle>
+			<textField>
+				<reportElement style="ColumnHeader" x="0" y="0" width="34" height="25" uuid="d5452c8f-5050-4d5b-94d6-86834dc1804d"/>
+				<textFieldExpression><![CDATA[$R{txt.2225}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="34" y="0" width="85" height="25" uuid="4f6467bb-ba41-4873-837d-cf86f281f591"/>
+				<textFieldExpression><![CDATA[$R{txt.1021}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="119" y="0" width="85" height="25" uuid="6eee83c2-b5a1-4a99-967d-2b879161b80e"/>
+				<textFieldExpression><![CDATA[$R{txt.656}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="204" y="0" width="85" height="25" uuid="b929a2cb-1711-4f3c-8822-ad77cb8a256d"/>
+				<textFieldExpression><![CDATA[$R{txt.1502}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="289" y="0" width="77" height="25" uuid="c94cdf9d-4753-427e-9d87-74c23a7a9211"/>
+				<textFieldExpression><![CDATA[$R{txt.950}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="366" y="0" width="90" height="25" uuid="c5ea49e4-d6cf-4082-a259-e8b0cf2f980d"/>
+				<textFieldExpression><![CDATA[$R{txt.608}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="456" y="0" width="50" height="25" uuid="84b6b515-647a-4f93-b783-f35b973b72ec"/>
+				<textFieldExpression><![CDATA[$R{txt.1898}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="506" y="0" width="83" height="25" uuid="24ee05ce-0979-43db-a817-7d8fb894f079"/>
+				<textFieldExpression><![CDATA[$R{txt.1428}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="589" y="0" width="80" height="25" uuid="d8a5bfab-6854-44b6-9172-b9d26ff1302f"/>
+				<textFieldExpression><![CDATA[$R{txt.2196}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="669" y="0" width="60" height="25" uuid="3da967d6-56e4-4ad7-ab02-6e4b2f5c631c"/>
+				<textFieldExpression><![CDATA[$R{txt.1849}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="729" y="0" width="70" height="25" uuid="b9e2cabd-da85-4ed0-a815-d5baf2c4e3dc"/>
+				<textFieldExpression><![CDATA[$R{txt.2607}]]></textFieldExpression>
+			</textField>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="30" splitType="Stretch">
+			<textField>
+				<reportElement style="ColumnDetail" x="366" y="0" width="90" height="30" uuid="1d1f7878-4be8-4b95-a0ac-5f6e46f1fd72">
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Left">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{CUST_NM}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="669" y="0" width="60" height="30" uuid="7d475451-12bd-44c8-91b5-bc00adf1cc7a"/>
+				<textElement textAlignment="Center">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{AGREE_ID}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="506" y="0" width="83" height="30" uuid="c113da85-8963-4745-bbc9-31fe1df87c19"/>
+				<textElement textAlignment="Center">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{CMP_NM}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="119" y="0" width="85" height="30" uuid="a65a20f7-4831-49de-bcb7-3c748aefe9de">
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{GRP_NM}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="34" y="0" width="85" height="30" uuid="944cef84-b573-4fdc-abbc-e9ce7cdd6459"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{CNTR_NM}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="204" y="0" width="85" height="30" uuid="8aa557c2-7702-4d37-a4ff-06ec8156a7d7"/>
+				<textElement textAlignment="Center">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{TEAM_NM}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement key="" style="ColumnDetail" x="0" y="0" width="34" height="30" uuid="215e76f9-823b-45c0-bab1-b121c092717e"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$V{REPORT_COUNT}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="729" y="0" width="70" height="30" uuid="d04a03fc-64eb-4d50-9dce-a25958f78eed"/>
+				<textElement textAlignment="Center">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{LOAN_STATUS}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="456" y="0" width="50" height="30" uuid="05ef49c5-77b7-4f2b-9f91-7f7096b17ecc">
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{ASGN_DT}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="589" y="0" width="80" height="30" uuid="d6d7d60a-ed23-4576-a681-6e3744406664"/>
+				<textElement textAlignment="Left">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{CNSL_MEDCLAS_NM}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="289" y="0" width="77" height="30" uuid="ac962276-4c4a-43a8-bf0b-a933e5a72165"/>
+				<textElement textAlignment="Left">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{CNSLR_NM}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="15">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<textField>
+				<reportElement x="0" y="0" width="400" height="15" uuid="0ad82bc3-209f-44ae-81c9-2b2131e86bd2">
+					<property name="com.jaspersoft.studio.unit.y" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.x" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Bottom"/>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="400" y="0" width="400" height="15" uuid="82b1fd91-27f9-4ed1-a140-aa187f259b1c">
+					<property name="com.jaspersoft.studio.unit.x" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Bottom"/>
+				<textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+</jasperReport>

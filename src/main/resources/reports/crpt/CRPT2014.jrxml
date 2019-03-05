@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.5.1.final using JasperReports Library version 6.5.1  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Report" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="6deab63a-2dae-4b49-b42b-be896ac69dc4">
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+	<template><![CDATA["reports/styles/main.jrtx"]]></template>
+	<parameter name="strDate" class="java.lang.String"/>
+	<parameter name="team" class="java.lang.String"/>
+	<parameter name="endDate" class="java.lang.String"/>
+	<parameter name="title" class="java.lang.String"/>
+	<parameter name="detail" class="java.lang.String"/>
+	<queryString language="SQL">
+		<![CDATA[SELECT '' REG_DTM,
+	      '' CNTR_CD,
+	      '' CNTR_NM,
+	      '' GRP_CD,
+	      '' GRP_NM,
+	      '' TEAM_CD,
+	      '' TEAM_NM,
+	      0 OB_CNT,
+	      '' OB_TM,
+	      0 IB_CNT,
+	      '' IB_TM,
+	      0 TOTAL_CNT,
+	      '' TOTAL_TM
+	  FROM DUAL]]>
+	</queryString>
+	<field name="AGEN_NM" class="java.lang.String"/>
+	<field name="CALL_ANS" class="java.math.BigDecimal"/>
+	<field name="EXT_CALL" class="java.math.BigDecimal"/>
+	<field name="CALL_TOT" class="java.math.BigDecimal"/>
+	<field name="AVG_HNDL_TM" class="java.math.BigDecimal"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="120" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<image>
+				<reportElement stretchType="ContainerBottom" x="2" y="1" width="252" height="59" uuid="19c02aa5-4761-497e-8a01-0a9d77ef2d91"/>
+				<imageExpression><![CDATA["reports/images/MIRAE_logo.png"]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="500" y="35" width="300" height="20" uuid="75021a6f-de65-47ee-a01e-bf5d97863622"/>
+				<textElement textAlignment="Right" verticalAlignment="Bottom">
+					<font fontName="Arial" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[91 Pasteur Street, Ben Nghe Ward, District 1 HCMC, Vietnam]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="55" width="300" height="21" uuid="19474a6b-9d47-4749-ba8f-70bcfcdb46b8"/>
+				<textElement textAlignment="Right">
+					<font isBold="false"/>
+				</textElement>
+				<text><![CDATA[T. (028) 7300-7777, F. (028)6299-0894, W. mafc.com.vn]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="1" width="301" height="31" uuid="6f13256b-299a-41c3-88ee-d2c20eb69baf"/>
+				<textElement textAlignment="Right">
+					<font size="16" isBold="true"/>
+				</textElement>
+				<text><![CDATA[MIRAE ASSET Finance Company]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="18" width="300" height="30" forecolor="#706E6E" uuid="7b056d6e-50f9-40ea-87b7-88c020ecd305"/>
+				<textElement textAlignment="Right">
+					<font fontName="Arial Viet" size="14"/>
+				</textElement>
+				<text><![CDATA[Đi một ngày đàng, học một sàng khôn]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true">
+				<reportElement style="TitleRight" x="480" y="95" width="320" height="20" uuid="72b82b2a-6fb3-4d83-853f-f571ff760211"/>
+				<textFieldExpression><![CDATA["Print Date : " + new java.util.Date() + "\n" + $P{detail}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="TitleFont" stretchType="ContainerBottom" x="2" y="80" width="460" height="38" uuid="e6b0dcc7-0a91-4431-82c0-b31827b46cec"/>
+				<textFieldExpression><![CDATA[$P{title}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="25" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<rectangle>
+				<reportElement style="ColumnHeader" x="1" y="0" width="800" height="25" uuid="7935e3ac-a522-438f-be99-aa7b3b5a1366">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+				</reportElement>
+			</rectangle>
+			<textField>
+				<reportElement style="ColumnHeader" x="41" y="0" width="200" height="25" uuid="594c1641-042e-4d2e-8020-47112e0fa531">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.950}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="241" y="0" width="140" height="25" uuid="a8d0af73-dc77-4085-b5aa-fc2d8f4a2b00">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.1862}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="381" y="0" width="140" height="25" uuid="939b243b-e91c-4f3b-bdd0-5d6169c57a2f">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.2088}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="661" y="0" width="140" height="25" uuid="71628069-8efc-466a-866d-6cd943df66cd">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.1906}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="521" y="0" width="140" height="25" uuid="e231dca0-33dc-4b63-af19-55ce4d10ef55">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.1405}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="1" y="0" width="40" height="25" uuid="6e497c9f-8af0-48c3-a4a3-f462b423b04d">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.2225}]]></textFieldExpression>
+			</textField>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="30" splitType="Stretch">
+			<textField>
+				<reportElement style="ColumnDetail" x="41" y="0" width="200" height="30" uuid="4acff0b8-cf61-4a46-9f19-dc5810a27ff0">
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Left"/>
+				<textFieldExpression><![CDATA[$F{AGEN_NM}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="661" y="0" width="140" height="30" uuid="1e8da872-d3ba-4648-8c22-c93af0dc1f47"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{AVG_HNDL_TM}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="381" y="0" width="140" height="30" uuid="0c4a81ee-98f9-40ae-b9e4-350f7be1b802">
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{EXT_CALL}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="241" y="0" width="140" height="30" uuid="76c6cb6d-fe32-48d5-8bdf-c823c83c9d97"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{CALL_ANS}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="521" y="0" width="140" height="30" uuid="044a1cf4-bd90-4d77-8fd0-5d3745234673"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{CALL_TOT}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="1" y="0" width="40" height="30" uuid="d2571f26-f2be-4606-b116-8abb1c50dd9c"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$V{REPORT_COUNT}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="15">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<textField>
+				<reportElement x="0" y="0" width="400" height="15" uuid="0ad82bc3-209f-44ae-81c9-2b2131e86bd2">
+					<property name="com.jaspersoft.studio.unit.y" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.x" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Bottom"/>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="400" y="0" width="400" height="15" uuid="82b1fd91-27f9-4ed1-a140-aa187f259b1c">
+					<property name="com.jaspersoft.studio.unit.x" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Bottom"/>
+				<textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+</jasperReport>

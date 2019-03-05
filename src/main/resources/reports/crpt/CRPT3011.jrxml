@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.5.1.final using JasperReports Library version 6.5.1  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Report" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="6deab63a-2dae-4b49-b42b-be896ac69dc4">
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="New Data Adapter "/>
+	<template><![CDATA["reports/styles/main.jrtx"]]></template>
+	<parameter name="title" class="java.lang.String"/>
+	<parameter name="strDate" class="java.lang.String"/>
+	<parameter name="team" class="java.lang.String"/>
+	<parameter name="endDate" class="java.lang.String"/>
+	<parameter name="detail" class="java.lang.String"/>
+	<queryString language="SQL">
+		<![CDATA[SELECT 'Sign Total' AS MAIN_CATE
+			 , N'Total phone number assign' AS SUB_CATE
+			 , COUNT(B.CNSLR_ID) AS CNT
+			 , '100' || '%' AS PER
+		  FROM T_CMP A
+		 INNER JOIN T_CALL_LIST B
+			ON A.CMP_ID = B.CMP_ID
+		 WHERE B.CNSLR_ID IS NOT NULL
+		   AND A.CMP_TYP = 'TS'
+		
+		 UNION ALL
+		
+		 
+		SELECT 'Fresh Data' AS MAIN_CATE
+			 , N'Not Call' AS SUB_CATE
+			 , COUNT(B.CNSLR_ID) - COUNT(C.CMP_ID) AS CNT
+			 , TO_CHAR(NVL(ROUND(COUNT(C.CMP_ID) / DECODE(COUNT(B.CNSLR_ID), 0, NULL, COUNT(B.CNSLR_ID)), 2), 0), 'FM90.00') || '%' AS PER
+		  FROM T_CMP A
+		 INNER JOIN T_CALL_LIST B
+			ON A.CMP_ID = B.CMP_ID
+		  LEFT OUTER JOIN T_CALL_LIST_RSLT C
+			ON B.CMP_ID = C.CMP_ID
+		   AND B.CUST_NO = C.CUST_NO
+		   AND B.CALL_LIST_SEQNO = B.CALL_LIST_SEQNO
+		 WHERE B.CNSLR_ID IS NOT NULL
+		   AND A.CMP_TYP = 'TS'
+		
+		 UNION ALL
+		
+		SELECT DECODE(CNSL_CD, NULL, 'TOTAL', FN_CNSL_CD_NM(HGRK_CNSL_CD, 'en-US')) AS MAIN_CATE
+			 , CD_NM AS SUB_CATE
+			 , CNT
+			 , TO_CHAR(NVL(DECODE(A.CNT, 0 , NULL, A.CNT) /
+						   (
+							SELECT DECODE(COUNT(B.CNSLR_ID)-(COUNT(B.CNSLR_ID)-COUNT(C.CMP_ID)), 0, NULL, COUNT(B.CNSLR_ID)-(COUNT(B.CNSLR_ID)-COUNT(C.CMP_ID))) AS A1
+							  FROM T_CMP A
+							 INNER JOIN T_CALL_LIST B
+								ON A.CMP_ID = B.CMP_ID
+							  LEFT OUTER JOIN T_CALL_LIST_RSLT C
+								ON B.CMP_ID = C.CMP_ID
+							   AND B.CUST_NO = C.CUST_NO
+							   AND B.CALL_LIST_SEQNO = B.CALL_LIST_SEQNO
+							 WHERE B.CNSLR_ID IS NOT NULL
+							   AND A.CMP_TYP = 'TS'
+						   ), 0), 'FM90.00') || '%' AS PER
+		  FROM (
+				SELECT HGRK_CNSL_CD
+					 , CNSL_CD
+					 , CD_NM AS CD_NM
+					 , CNT
+					 , DECODE(HGRK_CNSL_CD, 'TS20', DECODE(A.CNSL_CD, NULL, 2, 1), 'TS10', DECODE(A.CNSL_CD, NULL, 4, 3), 'TS30', DECODE(A.CNSL_CD, NULL, 6, 5)) AS CNSL_CD_ORD
+				  FROM (
+						SELECT A.HGRK_CNSL_CD
+							 , A.CNSL_CD
+							 , DECODE(A.CD_NM, NULL, FN_CNSL_CD_NM(A.CNSL_CD, 'en-US'), A.CD_NM) AS CD_NM
+							 , A.CNT 
+						  FROM (
+								SELECT A.HGRK_CNSL_CD, A.CNSL_CD, A.CD_NM, NVL(SUM(B.CNT1),0) CNT
+								  FROM (
+										SELECT A.HGRK_CNSL_CD, A.CNSL_CD, A.CD_NM, B.CNSL_CD_ORD
+										  FROM T_CNSL_CD A
+										 INNER JOIN (
+													SELECT DECODE(A.CNSL_CD, 'TS20', 1, 'TS10', 2, 'TS30', 3) AS CNSL_CD_ORD
+														 , A.CNSL_CD
+														 , A.CD_NM
+													  FROM T_CNSL_CD A
+													 INNER JOIN T_CNSL_CD_POLYGLOT B
+														ON A.CNSL_CD = B.CNSL_CD 
+													 WHERE A.USE_YN = 'Y'
+													   AND B.LNGG_CD = 'en-US'
+													   AND A.HGRK_CNSL_CD = 'TS'
+											) B
+											ON A.HGRK_CNSL_CD = B.CNSL_CD
+										 ORDER BY B.CNSL_CD_ORD, A.CNSL_CD
+									) A
+								  LEFT OUTER JOIN (
+													SELECT C.LST_CNSL_MEDCLAS_CD
+														 , C.LST_CNSL_SMLCLAS_CD 
+														 , COUNT(C.LST_CNSL_SMLCLAS_CD) AS CNT1
+													  FROM T_CMP A
+													 INNER JOIN T_CALL_LIST B
+														ON A.CMP_ID = B.CMP_ID
+													  LEFT OUTER JOIN T_CALL_LIST_RSLT C
+														ON B.CMP_ID = C.CMP_ID
+													   AND B.CUST_NO = C.CUST_NO
+													   AND B.CALL_LIST_SEQNO = B.CALL_LIST_SEQNO
+													 WHERE B.CNSLR_ID IS NOT NULL
+													   AND A.CMP_TYP = 'TS'
+													   AND C.CMP_ID IS NOT NULL
+													 GROUP BY C.LST_CNSL_MEDCLAS_CD
+															, C.LST_CNSL_SMLCLAS_CD
+										) B
+									ON A.HGRK_CNSL_CD = B.LST_CNSL_MEDCLAS_CD
+								   AND A.CNSL_CD = B.LST_CNSL_SMLCLAS_CD
+								 GROUP BY ROLLUP(A.HGRK_CNSL_CD, A.CNSL_CD, A.CD_NM)
+							) A
+						 WHERE A.HGRK_CNSL_CD IS NOT NULL
+					) A 
+				 GROUP BY HGRK_CNSL_CD,CNSL_CD,CD_NM, CNT
+				 ORDER BY CNSL_CD_ORD, CNSL_CD
+			) A]]>
+	</queryString>
+	<field name="MAIN_CATE" class="java.lang.String"/>
+	<field name="SUB_CATE" class="java.lang.String"/>
+	<field name="CNT" class="java.math.BigDecimal"/>
+	<field name="PER" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="120" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<image>
+				<reportElement stretchType="ContainerBottom" x="2" y="1" width="252" height="59" uuid="d6145a2d-565d-43c1-8c6d-b723ba8d4a1b"/>
+				<imageExpression><![CDATA["reports/images/MIRAE_logo.png"]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="500" y="35" width="300" height="20" uuid="a63abea0-5ffa-482a-8bf8-b59f10811b98"/>
+				<textElement textAlignment="Right" verticalAlignment="Bottom">
+					<font fontName="Arial" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[91 Pasteur Street, Ben Nghe Ward, District 1 HCMC, Vietnam]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="55" width="300" height="21" uuid="e05b51ed-776b-4f1f-a50b-40733f4f77b0"/>
+				<textElement textAlignment="Right">
+					<font isBold="false"/>
+				</textElement>
+				<text><![CDATA[T. (028) 7300-7777, F. (028)6299-0894, W. mafc.com.vn]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="1" width="301" height="31" uuid="2a2d48f0-fb48-4cb7-8c06-9a9e5b7be8f0"/>
+				<textElement textAlignment="Right">
+					<font size="16" isBold="true"/>
+				</textElement>
+				<text><![CDATA[MIRAE ASSET Finance Company]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="18" width="300" height="30" forecolor="#706E6E" uuid="b77af353-1051-4fe0-b2b3-8ac8269dec62"/>
+				<textElement textAlignment="Right">
+					<font fontName="Arial Viet" size="14"/>
+				</textElement>
+				<text><![CDATA[Đi một ngày đàng, học một sàng khôn]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true">
+				<reportElement style="TitleRight" x="480" y="95" width="320" height="20" uuid="90cff4ef-de67-482c-8b12-fc76d55a8d12"/>
+				<textFieldExpression><![CDATA["Print Date : " + new java.util.Date() + "\n" + $P{detail}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="TitleFont" stretchType="ContainerBottom" x="2" y="80" width="460" height="38" uuid="52b918de-17a5-42e1-be8d-6d5dfc9ce45c"/>
+				<textFieldExpression><![CDATA[$P{title}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="30">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<rectangle>
+				<reportElement style="ColumnHeader" x="1" y="0" width="800" height="30" uuid="2dd52d3a-b80e-4db3-97fe-1baa5a7d52fd">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+				</reportElement>
+			</rectangle>
+			<textField>
+				<reportElement style="ColumnHeader" x="250" y="0" width="341" height="30" uuid="f7e69b3c-1b80-4cd0-8b1d-6e0621afc191">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.2398}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="700" y="0" width="101" height="30" uuid="0b7fb6c8-508a-4133-8a97-27700ab357d5">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.570}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="1" y="0" width="59" height="30" uuid="d28ec230-d6ab-4c09-8d46-fafbefcf8e14">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.2225}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="60" y="0" width="190" height="30" uuid="1d2932dd-8d48-42de-a806-3ad67bbc3b0e">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.2195}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnHeader" x="591" y="0" width="109" height="30" uuid="8fe2a9b2-cd8c-4d56-be1f-7b8a2c80ebd9">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+				</reportElement>
+				<textFieldExpression><![CDATA[$R{txt.570}]]></textFieldExpression>
+			</textField>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="30" splitType="Stretch">
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="250" y="0" width="341" height="30" uuid="8958d867-322e-4309-844d-2e0e98cffe3a"/>
+				<textElement textAlignment="Left"/>
+				<textFieldExpression><![CDATA[$F{SUB_CATE}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetail" x="1" y="0" width="59" height="30" uuid="74088ec0-b3c9-4c20-9e70-964553ecbb98"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$V{REPORT_COUNT}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="700" y="0" width="101" height="30" uuid="a3598c7a-eb5a-4cc2-9617-5398b25edb71"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{PER}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="591" y="0" width="109" height="30" uuid="55960f03-a5cb-401b-94d2-370ba314816c"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{CNT}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="ColumnDetailNumber" x="60" y="0" width="190" height="30" uuid="be43eccd-f666-4696-b4fc-95921168623c"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{MAIN_CATE}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="30">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<textField>
+				<reportElement x="0" y="0" width="400" height="15" uuid="0ad82bc3-209f-44ae-81c9-2b2131e86bd2">
+					<property name="com.jaspersoft.studio.unit.y" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.x" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Bottom"/>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="400" y="0" width="400" height="15" uuid="82b1fd91-27f9-4ed1-a140-aa187f259b1c">
+					<property name="com.jaspersoft.studio.unit.x" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Bottom"/>
+				<textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+</jasperReport>
